@@ -22,6 +22,7 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
 
     let W = window.innerWidth;
     let H = window.innerHeight;
+    let isMobile = W < 768;
     let raf = 0;
     let phaseStart = 0;
     let textPixels: { x: number; y: number; charIdx: number }[] = [];
@@ -53,7 +54,6 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
     // ── Sample text into pixel coordinates ──
     function buildTextPixels() {
       const off = document.createElement('canvas');
-      const isMobile = W < 768;
 
       // ── Fit font so the widest line fills ~88% of screen width ──
       // We need to measure first, then scale to fit.
@@ -83,7 +83,7 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
       LINES.forEach((line, i) => oCtx.fillText(line, 0, i * lineGap));
 
       const { data } = oCtx.getImageData(0, 0, off.width, off.height);
-      const step = 3;
+      const step = isMobile ? 4 : 3;
 
       // Left margin so text starts with consistent padding
       const originX = isMobile ? W * 0.06 : W * 0.055;
@@ -165,7 +165,7 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
           tx: pt.x, ty: pt.y,
           charIdx: pt.charIdx,
           alpha: 0,
-          size: Math.random() * 1.5 + 0.6,
+          size: isMobile ? Math.random() * 0.6 + 0.4 : Math.random() * 1.5 + 0.6,
           trail: [],
           arrived: false,
           seed: Math.random() * 1000,
@@ -233,9 +233,8 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
                 d.vy = (d.vy + dy * spring) * 0.72;
                 d.x += d.vx; d.y += d.vy;
               }
-              // Brighter on mobile for readability
-              const maxAlpha = W < 768 ? 0.85 : 0.55;
-              d.alpha = lerp(d.alpha, maxAlpha + pull * 0.15, 0.06);
+              const maxAlpha = W < 768 ? 0.65 : 0.55;
+              d.alpha = lerp(d.alpha, maxAlpha + pull * 0.1, 0.06);
             }
 
             if (d.arrived && phase === 'live') {
@@ -254,8 +253,8 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
               d.vx = (d.vx + (d.tx - d.x) * 0.1 + rx + breathX) * 0.72;
               d.vy = (d.vy + (d.ty - d.y) * 0.1 + ry + breathY) * 0.72;
               d.x += d.vx; d.y += d.vy;
-              const baseAlpha = W < 768 ? 0.75 : 0.55;
-              d.alpha = lerp(d.alpha, baseAlpha + Math.sin(now * 0.001 + d.seed) * 0.2, 0.04);
+              const baseAlpha = W < 768 ? 0.6 : 0.55;
+              d.alpha = lerp(d.alpha, baseAlpha + Math.sin(now * 0.001 + d.seed) * 0.12, 0.04);
             }
           }
         } else {
@@ -270,8 +269,8 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
 
         if (d.alpha < 0.01) continue;
 
-        // Glow halo on bright particles
-        if (d.alpha > 0.3 && d.size > 1.0) {
+        // Glow halo on bright particles — skip on mobile to keep text crisp
+        if (!isMobile && d.alpha > 0.3 && d.size > 1.0) {
           const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.size * 5);
           g.addColorStop(0, `rgba(255,255,255,${d.alpha * 0.18})`);
           g.addColorStop(1, 'rgba(255,255,255,0)');
@@ -311,6 +310,7 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
 
     function resize() {
       W = window.innerWidth; H = window.innerHeight;
+      isMobile = W < 768;
       canvas.width  = W * dpr; canvas.height = H * dpr;
       canvas.style.width  = W + 'px'; canvas.style.height = H + 'px';
       ctx.scale(dpr, dpr);
