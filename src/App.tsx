@@ -1,308 +1,313 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import './App.css';
 
-type Act = 'silence' | 'line' | 'pulse' | 'fracture' | 'reveal' | 'breathe';
+type Phase = 'void' | 'ink' | 'form' | 'live';
+
 const LINES = ['doing things', 'that touch', 'lives.'];
-const CYCLE = ['ideate.', 'research.', 'build.', 'touch lives.'];
+const WORDS_CYCLE = ['ideate.', 'research.', 'build.', 'touch lives.'];
 
-interface Particle {
-  x: number; y: number; z: number;
-  vx: number; vy: number; vz: number;
-  hx: number; hy: number; hz: number;
-  sx: number; sy: number;
-  baseSize: number;
-  alpha: number;
-  delay: number;
-  seed: number;
-}
-
-function StoryCanvas({ onAct }: { onAct: (a: Act) => void }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const cbRef = useRef(onAct);
-  cbRef.current = onAct;
+// ─────────────────────────────────────────────────────────────────
+// Main canvas — ink-drop fluid effect
+// ─────────────────────────────────────────────────────────────────
+function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const phaseRef = useRef<Phase>('void');
+  const onPhaseRef = useRef(onPhase);
+  onPhaseRef.current = onPhase;
 
   useEffect(() => {
-    const canvas = ref.current!;
+    const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    let W = window.innerWidth, H = window.innerHeight;
-    let raf = 0, actStart = 0;
-    let act: Act = 'silence';
-    let particles: Particle[] = [];
-    let lineY = 0;
-    let crackPoints: { x: number; y: number; angle: number; len: number }[] = [];
-    const mouse = { x: -9999, y: -9999, sx: 0, sy: 0 };
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    let raf = 0;
+    let phaseStart = 0;
+    let textPixels: { x: number; y: number; charIdx: number }[] = [];
+    let totalChars = 0;
 
-    let fontSize = 0, lineH = 0, originX = 0, originY = 0;
-
-    const easeOut3  = (t: number) => 1 - Math.pow(1 - t, 3);
-    const easeOut5  = (t: number) => 1 - Math.pow(1 - t, 5);
-    const easeInOut = (t: number) => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
-    const lerp      = (a: number, b: number, t: number) => a + (b - a) * t;
-    const clamp     = (v: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
-
-    function go(a: Act) {
-      act = a; actStart = performance.now();
-      cbRef.current(a);
+    // Each "drop" = one ink particle that seeks its text pixel home
+    interface Drop {
+      x: number; y: number;
+      vx: number; vy: number;
+      tx: number; ty: number;  // target text pixel
+      charIdx: number;         // which character (for staggered reveal)
+      alpha: number;
+      size: number;
+      trail: { x: number; y: number; a: number }[];
+      arrived: boolean;
+      seed: number;
+      hue: number;
     }
 
-    function setupMetrics() {
-      const mobile = W < 768;
-      // Tighter font on mobile so text fits and doesn't crowd bottom UI
-      fontSize  = mobile
-        ? Math.floor(Math.min(W * 0.115, H * 0.11))
-        : Math.floor(Math.min(W * 0.088, 122));
-      lineH     = fontSize * 0.9;
-      originX   = mobile ? W * 0.05 : W * 0.06;
-      // Place text in top 45% of screen on mobile — well clear of bottom UI
-      originY   = mobile ? H * 0.14 : H * 0.2;
-      lineY     = H * 0.5;
+    let drops: Drop[] = [];
+    const mouse = { x: -9999, y: -9999 };
+
+    function setPhase(p: Phase) {
+      phaseRef.current = p;
+      phaseStart = performance.now();
+      onPhaseRef.current(p);
     }
 
-    function buildParticles() {
-      const off    = document.createElement('canvas');
-      const mobile = W < 768;
-      // Denser sampling on desktop, sparser on mobile for performance + clarity
-      const step   = mobile ? 6 : 3;
-      const font   = `700 ${fontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
+    // ── Sample text into pixel coordinates ──
+    function buildTextPixels() {
+      const off = document.createElement('canvas');
+      const isMobile = W < 768;
+
+      // Responsive font — fills ~85% of width on mobile, left-aligned
+      const fontSize = isMobile
+        ? Math.floor(W * 0.155)  // slightly larger for better visibility
+        : Math.floor(Math.min(W * 0.094, 136));
+
+      const lineGap = fontSize * 0.95;
 
       const oCtx = off.getContext('2d')!;
-      oCtx.font = font;
-      const maxW = Math.max(...LINES.map(l => oCtx.measureText(l).width));
-      off.width  = Math.ceil(maxW) + 8;
-      off.height = Math.ceil(LINES.length * lineH) + fontSize;
+      const fontStr = `700 ${fontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
+      oCtx.font = fontStr;
 
-      oCtx.font = font;
+      const maxW = Math.max(...LINES.map(l => oCtx.measureText(l).width));
+      off.width  = Math.ceil(maxW) + 4;
+      off.height = Math.ceil(LINES.length * lineGap) + fontSize;
+
+      oCtx.font = fontStr;
       oCtx.fillStyle = '#fff';
       oCtx.textBaseline = 'top';
-      LINES.forEach((l, i) => oCtx.fillText(l, 0, i * lineH));
+      LINES.forEach((line, i) => oCtx.fillText(line, 0, i * lineGap));
 
       const { data } = oCtx.getImageData(0, 0, off.width, off.height);
-      particles = [];
+      const step = isMobile ? 3 : 3; // same density on mobile for readability
+
+      // Offset on screen — left-aligned, vertically centered in the canvas area
+      const originX = isMobile ? W * 0.05 : W * 0.055;
+      // On mobile: center the text block vertically, keeping it clear of header (~10%) and sub-block (bottom ~35%)
+      const textBlockHeight = LINES.length * lineGap + fontSize;
+      const originY = isMobile
+        ? (H * 0.12) + (H * 0.53 - textBlockHeight) / 2  // center in top 55% of screen
+        : H * 0.22;
+
+      textPixels = [];
+      totalChars = 0;
+
+      // Per-char mapping: measure each char's x boundary
+      const charBounds: { x0: number; x1: number; line: number }[] = [];
+      LINES.forEach((line, li) => {
+        const chars = line.split('');
+        let cx = 0;
+        chars.forEach((ch) => {
+          const w = oCtx.measureText(ch).width;
+          charBounds.push({ x0: cx, x1: cx + w, line: li });
+          cx += w;
+        });
+      });
+      totalChars = charBounds.length;
 
       for (let py = 0; py < off.height; py += step) {
         for (let px = 0; px < off.width; px += step) {
-          if (data[(py * off.width + px) * 4 + 3] > 110) {
-            const hx = originX + px;
-            const hy = originY + py;
-            const hz = (Math.random() - 0.5) * 80;
-
-            const angle  = Math.random() * Math.PI * 2;
-            const radius = Math.random() * Math.max(W, H) * 0.65 + 80;
-
-            particles.push({
-              x: W * 0.5 + Math.cos(angle) * radius,
-              y: lineY  + Math.sin(angle) * radius * 0.55,
-              z: hz,
-              vx: (Math.random() - 0.5) * 1.5,
-              vy: (Math.random() - 0.5) * 1.5,
-              vz: 0,
-              hx, hy, hz,
-              sx: W * 0.5 + Math.cos(angle) * radius,
-              sy: lineY  + Math.sin(angle) * radius * 0.55,
-              // Smaller dots on mobile
-              baseSize: mobile
-                ? Math.random() * 0.9 + 0.4
-                : Math.random() * 1.4 + 0.6,
-              alpha: 0,
-              delay: Math.random() * 1600,
-              seed: Math.random() * 1000,
+          if (data[(py * off.width + px) * 4 + 3] > 100) {
+            // Find which char this pixel belongs to
+            let charIdx = 0;
+            const lineIdx = Math.floor(py / lineGap);
+            let lineCharStart = 0;
+            for (let li = 0; li < lineIdx && li < LINES.length; li++) {
+              lineCharStart += LINES[li].split('').length;
+            }
+            for (let ci = lineCharStart; ci < charBounds.length; ci++) {
+              if (charBounds[ci].line === lineIdx && px >= charBounds[ci].x0 && px < charBounds[ci].x1) {
+                charIdx = ci;
+                break;
+              }
+            }
+            textPixels.push({
+              x: originX + px,
+              y: originY + py,
+              charIdx,
             });
           }
         }
       }
     }
 
-    function buildCracks() {
-      crackPoints = [];
-      for (let i = 0; i < 20; i++) {
-        const base  = (i / 20) * Math.PI * 2;
-        const angle = base + (Math.random() - 0.5) * 0.45;
-        crackPoints.push({
-          x: W / 2, y: lineY, angle,
-          len: Math.random() * Math.min(W, H) * 0.36 + 60,
-        });
-      }
+    // ── Spawn ink drops ──
+    function spawnDrops() {
+      drops = textPixels.map((pt) => {
+        // Each drop starts from a random edge or center smear
+        const spawnType = Math.random();
+        let sx: number, sy: number;
+
+        if (spawnType < 0.35) {
+          // Falls from top like real ink drop
+          sx = pt.x + (Math.random() - 0.5) * W * 0.4;
+          sy = -Math.random() * H * 0.3;
+        } else if (spawnType < 0.6) {
+          // Rises from bottom
+          sx = pt.x + (Math.random() - 0.5) * W * 0.3;
+          sy = H + Math.random() * H * 0.2;
+        } else {
+          // Radial burst from center
+          const angle = Math.random() * Math.PI * 2;
+          const r = Math.random() * Math.min(W, H) * 0.6 + 100;
+          sx = W * 0.5 + Math.cos(angle) * r;
+          sy = H * 0.5 + Math.sin(angle) * r;
+        }
+
+        return {
+          x: sx, y: sy,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          tx: pt.x, ty: pt.y,
+          charIdx: pt.charIdx,
+          alpha: 0,
+          size: Math.random() * 1.5 + 0.6,
+          trail: [],
+          arrived: false,
+          seed: Math.random() * 1000,
+          hue: 0, // pure white; could tint later
+        };
+      });
     }
 
+    // ── Draw loop ──
     function tick(now: number) {
-      const el = now - actStart;
+      const el = now - phaseStart;
+      const phase = phaseRef.current;
+
+      // Phase transitions
+      if (phase === 'void' && el > 600)  setPhase('ink');
+      if (phase === 'ink'  && el > 1000) setPhase('form');
+      if (phase === 'form' && el > 5500) setPhase('live');
+
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = '#050505';
-      ctx.fillRect(0, 0, W, H);
 
-      mouse.sx = lerp(mouse.sx, mouse.x, 0.07);
-      mouse.sy = lerp(mouse.sy, mouse.y, 0.07);
-
-      if (act === 'silence') {
-        if (el > 800) go('line');
-        raf = requestAnimationFrame(tick); return;
+      // Soft spotlight
+      if (phase !== 'void') {
+        const beamT = phase === 'ink' ? Math.min(el / 800, 1) : 1;
+        const bAlpha = easeOut(beamT) * (phase === 'live' ? 0.045 : 0.09);
+        const grad = ctx.createRadialGradient(W * 0.45, 0, 0, W * 0.45, H * 0.5, H * 0.9);
+        grad.addColorStop(0,   `rgba(255,255,255,${bAlpha})`);
+        grad.addColorStop(0.4, `rgba(255,255,255,${bAlpha * 0.3})`);
+        grad.addColorStop(1,   'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
       }
 
-      // ── line draws itself ──
-      if (act === 'line') {
-        const t = clamp(el / 1100);
-        const e = easeOut3(t);
-        const half = W * 0.3 * e, cx = W / 2;
-        line(cx - half, lineY, cx + half, lineY, `rgba(255,255,255,${e * 0.75})`, 1);
-        glowLine(cx - half, lineY, cx + half, lineY, e * 0.15);
-        if (t >= 1) go('pulse');
-      }
+      if (phase === 'void') { raf = requestAnimationFrame(tick); return; }
 
-      // ── heartbeat ──
-      if (act === 'pulse') {
-        const period = 680;
-        const beat   = Math.floor(el / period);
-        const phase  = (el % period) / period;
-        if (beat >= 2 && el > 1360) { buildCracks(); go('fracture'); }
-        else {
-          const amp = Math.sin(phase * Math.PI) * (beat === 0 ? 14 : 22);
-          const cx = W / 2, len = W * 0.3;
-          ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(cx - len, lineY);
-          ctx.bezierCurveTo(cx-55, lineY, cx-26, lineY-amp, cx,   lineY-amp);
-          ctx.bezierCurveTo(cx+26, lineY-amp, cx+55, lineY, cx+len, lineY);
-          ctx.stroke();
-          ctx.save(); ctx.filter = 'blur(4px)';
-          ctx.strokeStyle = `rgba(255,255,255,${0.1 + Math.abs(amp)/160})`; ctx.lineWidth = 7;
-          ctx.beginPath(); ctx.moveTo(cx-len, lineY); ctx.lineTo(cx+len, lineY); ctx.stroke();
-          ctx.restore();
-        }
-      }
+      const charRevealDuration = 5000; // ms for all chars to form
+      const perCharDelay = charRevealDuration / Math.max(totalChars, 1);
 
-      // ── fracture ──
-      if (act === 'fracture') {
-        const t = clamp(el / 700);
-        const e = easeOut5(t);
-        for (const c of crackPoints) {
-          ctx.strokeStyle = `rgba(255,255,255,${0.55 * (1 - t * 0.6)})`;
-          ctx.lineWidth   = lerp(1.4, 0.3, t);
-          ctx.beginPath(); ctx.moveTo(c.x, c.y);
-          ctx.lineTo(c.x + Math.cos(c.angle)*c.len*e, c.y + Math.sin(c.angle)*c.len*e);
-          ctx.stroke();
-        }
-        const g = ctx.createRadialGradient(W/2, lineY, 0, W/2, lineY, 280*e);
-        g.addColorStop(0,   `rgba(255,255,255,${e*0.6})`);
-        g.addColorStop(0.3, `rgba(255,255,255,${e*0.18})`);
-        g.addColorStop(1,   'rgba(255,255,255,0)');
-        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-        if (t >= 1) { buildParticles(); go('reveal'); }
-      }
+      for (const d of drops) {
+        const charDelay = d.charIdx * perCharDelay;
+        const charElapsed = el - charDelay;
 
-      // ── particles home in ──
-      if (act === 'reveal') {
-        drawParticles(now, el, false);
-        const cf = clamp(1 - el / 600);
-        for (const c of crackPoints) {
-          ctx.strokeStyle = `rgba(255,255,255,${0.28 * cf})`;
-          ctx.lineWidth = 0.5;
-          ctx.beginPath(); ctx.moveTo(c.x, c.y);
-          ctx.lineTo(c.x + Math.cos(c.angle)*c.len, c.y + Math.sin(c.angle)*c.len);
-          ctx.stroke();
-        }
-        if (el > 2800) go('breathe');
-      }
-
-      // ── alive forever ──
-      if (act === 'breathe') drawParticles(now, el, true);
-
-      raf = requestAnimationFrame(tick);
-    }
-
-    function line(x1: number, y1: number, x2: number, y2: number, color: string, w: number) {
-      ctx.strokeStyle = color; ctx.lineWidth = w;
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    }
-    function glowLine(x1: number, y1: number, x2: number, y2: number, a: number) {
-      ctx.save(); ctx.filter = 'blur(5px)';
-      ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-      ctx.restore();
-    }
-
-    function drawParticles(now: number, el: number, breathe: boolean) {
-      const FOV = 500;
-      const REPEL_R = 100, REPEL_F = 7;
-      const mx = mouse.sx, my = mouse.sy;
-
-      for (const p of particles) {
-        const localEl = el - p.delay;
-
-        if (!breathe) {
-          if (localEl < 0) {
-            p.vx += (Math.random()-0.5)*0.06; p.vy += (Math.random()-0.5)*0.06;
-            p.vx *= 0.97; p.vy *= 0.97;
-            p.x += p.vx; p.y += p.vy;
-            p.alpha = lerp(p.alpha, 0.07, 0.04);
+        if (phase === 'form' || phase === 'live') {
+          if (charElapsed < 0) {
+            // Not yet time for this char — drift gently
+            d.vx += (Math.random() - 0.5) * 0.1;
+            d.vy += (Math.random() - 0.5) * 0.1;
+            d.vx *= 0.96; d.vy *= 0.96;
+            d.x += d.vx; d.y += d.vy;
+            d.alpha = lerp(d.alpha, 0.06, 0.04);
           } else {
-            const t = clamp(localEl / 1400);
-            const spring = lerp(0.04, 0.11, easeOut3(t));
-            p.vx = (p.vx + (p.hx - p.x) * spring) * 0.73;
-            p.vy = (p.vy + (p.hy - p.y) * spring) * 0.73;
-            p.vz = (p.vz + (p.hz - p.z) * spring) * 0.73;
-            p.x += p.vx; p.y += p.vy; p.z += p.vz;
-            p.alpha = lerp(p.alpha, 0.7 + easeOut3(t) * 0.22, 0.05);
+            // Pull toward home
+            const progress = Math.min(charElapsed / 1800, 1);
+            const pull = easeOutElastic(progress);
+
+            if (!d.arrived) {
+              const dx = d.tx - d.x, dy = d.ty - d.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist < 1.5) {
+                d.arrived = true;
+                d.x = d.tx; d.y = d.ty;
+              } else {
+                const spring = 0.055 + pull * 0.09;
+                d.vx = (d.vx + dx * spring) * 0.72;
+                d.vy = (d.vy + dy * spring) * 0.72;
+                d.x += d.vx; d.y += d.vy;
+              }
+              // Brighter on mobile for readability
+              const maxAlpha = W < 768 ? 0.85 : 0.55;
+              d.alpha = lerp(d.alpha, maxAlpha + pull * 0.15, 0.06);
+            }
+
+            if (d.arrived && phase === 'live') {
+              // Breathing + mouse repulsion
+              const mx = mouse.x, my = mouse.y;
+              const ddx = d.x - mx, ddy = d.y - my;
+              const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+              const rR = 120;
+              let rx = 0, ry = 0;
+              if (dist < rR && dist > 0) {
+                const f = Math.pow((rR - dist) / rR, 1.6) * 9;
+                rx = (ddx / dist) * f; ry = (ddy / dist) * f;
+              }
+              const breathX = Math.cos(now * 0.00055 + d.seed) * 0.7;
+              const breathY = Math.sin(now * 0.00072 + d.seed * 1.3) * 0.7;
+              d.vx = (d.vx + (d.tx - d.x) * 0.1 + rx + breathX) * 0.72;
+              d.vy = (d.vy + (d.ty - d.y) * 0.1 + ry + breathY) * 0.72;
+              d.x += d.vx; d.y += d.vy;
+              const baseAlpha = W < 768 ? 0.75 : 0.55;
+              d.alpha = lerp(d.alpha, baseAlpha + Math.sin(now * 0.001 + d.seed) * 0.2, 0.04);
+            }
           }
         } else {
-          const dx = p.x - mx, dy = p.y - my;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          let rx = 0, ry = 0;
-          if (dist < REPEL_R && dist > 0) {
-            const f = Math.pow((REPEL_R-dist)/REPEL_R, 1.8) * REPEL_F;
-            rx = (dx/dist)*f; ry = (dy/dist)*f;
-          }
-          const bx = Math.cos(now*0.00052 + p.seed) * 0.55;
-          const by = Math.sin(now*0.00068 + p.seed*1.4) * 0.55;
-          const bz = Math.sin(now*0.00045 + p.seed*0.7) * 1.5;
-          p.vx = (p.vx + (p.hx-p.x)*0.09 + rx + bx) * 0.74;
-          p.vy = (p.vy + (p.hy-p.y)*0.09 + ry + by) * 0.74;
-          p.vz = (p.vz + (p.hz-p.z)*0.06 + bz)      * 0.74;
-          p.x += p.vx; p.y += p.vy; p.z += p.vz;
-          p.alpha = lerp(p.alpha, 0.5 + (p.z/80)*0.3 + Math.sin(now*0.0009+p.seed)*0.14, 0.04);
+          // 'ink' phase — chaos drift
+          d.vx += (Math.random() - 0.5) * 0.15;
+          d.vy += (Math.random() - 0.5) * 0.15;
+          d.vx *= 0.97; d.vy *= 0.97;
+          d.x += d.vx; d.y += d.vy;
+          const t = Math.min(el / 800, 1);
+          d.alpha = lerp(d.alpha, easeOut(t) * 0.18, 0.04);
         }
 
-        if (p.alpha < 0.02) continue;
+        if (d.alpha < 0.01) continue;
 
-        // 3D projection
-        const scale = FOV / (FOV - p.z);
-        const px2   = (p.x - W*0.5)*scale + W*0.5;
-        const py2   = (p.y - H*0.5)*scale + H*0.5;
-        const r     = Math.max(0.3, p.baseSize * scale);
-        const depth = clamp(0.45 + (p.z/80)*0.55);
-
-        // Glow on closer/brighter dots
-        if (r > 0.8 && p.alpha > 0.3) {
-          const g = ctx.createRadialGradient(px2, py2, 0, px2, py2, r*4);
-          g.addColorStop(0, `rgba(255,255,255,${p.alpha*depth*0.2})`);
+        // Glow halo on bright particles
+        if (d.alpha > 0.3 && d.size > 1.0) {
+          const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.size * 5);
+          g.addColorStop(0, `rgba(255,255,255,${d.alpha * 0.18})`);
           g.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.beginPath(); ctx.arc(px2, py2, r*4, 0, Math.PI*2);
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.size * 5, 0, Math.PI * 2);
           ctx.fillStyle = g; ctx.fill();
         }
 
-        ctx.beginPath(); ctx.arc(px2, py2, r, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(255,255,255,${p.alpha*depth})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${d.alpha})`;
         ctx.fill();
       }
 
-      if (breathe && mx > 0) {
-        const mg = ctx.createRadialGradient(mx, my, 0, mx, my, 160);
-        mg.addColorStop(0, 'rgba(255,255,255,0.04)');
-        mg.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = mg; ctx.fillRect(0,0,W,H);
-      }
+      // Ambient free particles on top (always drifting)
+      // drawn via noise overlay (CSS), so just tick
+      raf = requestAnimationFrame(tick);
+    }
+
+    function easeOut(t: number) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function easeOutElastic(t: number) {
+      if (t === 0) return 0;
+      if (t === 1) return 1;
+      return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
+    }
+
+    function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
+
+    function init() {
+      buildTextPixels();
+      spawnDrops();
+      setPhase('void');
     }
 
     function resize() {
       W = window.innerWidth; H = window.innerHeight;
-      mouse.sx = W/2; mouse.sy = H/2;
-      canvas.width  = W*dpr; canvas.height = H*dpr;
-      canvas.style.width = W+'px'; canvas.style.height = H+'px';
+      canvas.width  = W * dpr; canvas.height = H * dpr;
+      canvas.style.width  = W + 'px'; canvas.style.height = H + 'px';
       ctx.scale(dpr, dpr);
-      setupMetrics();
-      particles = []; crackPoints = [];
-      go('silence');
+      init();
     }
 
     const onMM = (e: MouseEvent) => { mouse.x = e.clientX; mouse.y = e.clientY; };
@@ -310,6 +315,7 @@ function StoryCanvas({ onAct }: { onAct: (a: Act) => void }) {
     window.addEventListener('mousemove', onMM);
     window.addEventListener('touchmove', onTM, { passive: true });
     window.addEventListener('resize', resize);
+
     resize();
     raf = requestAnimationFrame(tick);
     return () => {
@@ -320,59 +326,124 @@ function StoryCanvas({ onAct }: { onAct: (a: Act) => void }) {
     };
   }, []);
 
-  return <canvas ref={ref} className="story-canvas" />;
+  return <canvas ref={canvasRef} className="ink-canvas" />;
 }
 
-function TypeWriter({ on }: { on: boolean }) {
+// ─────────────────────────────────────────────────────────────────
+// Ambient floating particles (CSS-driven, layered behind)
+// ─────────────────────────────────────────────────────────────────
+function AmbientField() {
+  const count = 28;
+  return (
+    <div className="ambient-field" aria-hidden>
+      {Array.from({ length: count }).map((_, i) => (
+        <span
+          key={i}
+          className="mote"
+          style={{
+            left:  `${Math.random() * 100}%`,
+            top:   `${Math.random() * 100}%`,
+            width:  `${Math.random() * 2 + 0.5}px`,
+            height: `${Math.random() * 2 + 0.5}px`,
+            animationDelay:    `${Math.random() * 8}s`,
+            animationDuration: `${Math.random() * 14 + 10}s`,
+            opacity: Math.random() * 0.25 + 0.05,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Typewriter cycling words
+// ─────────────────────────────────────────────────────────────────
+function TypeWriter({ active }: { active: boolean }) {
   const [idx, setIdx] = useState(0);
-  const [txt, setTxt] = useState('');
+  const [text, setText] = useState('');
   const [del, setDel] = useState(false);
+
   useEffect(() => {
-    if (!on) return;
-    const word = CYCLE[idx];
+    if (!active) return;
+    const word = WORDS_CYCLE[idx];
     let t: ReturnType<typeof setTimeout>;
     if (!del) {
-      if (txt.length < word.length) t = setTimeout(() => setTxt(word.slice(0, txt.length+1)), 72);
-      else t = setTimeout(() => setDel(true), 2400);
+      if (text.length < word.length) {
+        t = setTimeout(() => setText(word.slice(0, text.length + 1)), 75);
+      } else {
+        t = setTimeout(() => setDel(true), 2200);
+      }
     } else {
-      if (txt.length > 0) t = setTimeout(() => setTxt(s => s.slice(0,-1)), 38);
-      else { setDel(false); setIdx(i => (i+1)%CYCLE.length); }
+      if (text.length > 0) {
+        t = setTimeout(() => setText(t2 => t2.slice(0, -1)), 38);
+      } else {
+        setDel(false);
+        setIdx(i => (i + 1) % WORDS_CYCLE.length);
+      }
     }
     return () => clearTimeout(t);
-  }, [on, txt, del, idx]);
+  }, [active, text, del, idx]);
 
   return (
-    <span className="tw">
-      <span className="tw-t">{txt}</span>
-      <span className={`tw-c${on?' blink':''}`} />
+    <span className="tw-wrap">
+      <span className="tw-text">{text}</span>
+      <span className={`tw-cursor${active ? ' blink' : ''}`} />
     </span>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+// App
+// ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [act, setAct] = useState<Act>('silence');
-  const handle = useCallback((a: Act) => setAct(a), []);
-  const live = act === 'breathe';
+  const [phase, setPhase] = useState<Phase>('void');
+  const handlePhase = useCallback((p: Phase) => setPhase(p), []);
+  const live = phase === 'live';
 
   return (
     <div className="shell">
       <div className="grain" />
-      <StoryCanvas onAct={handle} />
+      <AmbientField />
 
-      <header className={`hdr${live?' in':''}`}>
-        <span className="wm"><b>doing</b>things</span>
-        <a href="mailto:hello@doingthings.studio" className="clink">contact</a>
+      <div className={`glow phase-${phase}`} />
+
+      <InkCanvas onPhase={handlePhase} />
+
+      {/* Header */}
+      <header className={`hdr${live ? ' in' : ''}`}>
+        <span className="wordmark">
+          <span className="wm-a">doing</span><span className="wm-b">things</span>
+        </span>
+        <a href="mailto:hello@doingthings.studio" className="contact-link">
+          contact
+        </a>
       </header>
 
-      <footer className={`ftr${live?' in':''}`}>
-        <div className="sub-block">
-          <p className="sub-line">We&nbsp;<TypeWriter on={live} /></p>
-          <p className="sub-desc">A product studio. Thoughtful software for people who deserve better.</p>
-        </div>
+      {/* Sub-tagline — floats below the text block */}
+      <div className={`sub-block${live ? ' in' : ''}`}>
+        <p className="sub-line">
+          We&nbsp;<TypeWriter active={live} />
+        </p>
+        <p className="sub-desc">
+          A product studio. Thoughtful software for people who deserve better.
+        </p>
+      </div>
+
+      {/* Footer */}
+      <footer className={`ftr${live ? ' in' : ''}`}>
         <div className="cols">
-          <div className="col"><span className="cl">what we do</span><span className="cv">research · design · build</span></div>
-          <div className="col"><span className="cl">who we serve</span><span className="cv">people who deserve better</span></div>
-          <div className="col mobile-hide"><span className="cl">where we are</span><span className="cv">everywhere it matters</span></div>
+          <div className="col">
+            <span className="col-label">what we do</span>
+            <span className="col-val">research · design · build</span>
+          </div>
+          <div className="col">
+            <span className="col-label">who we serve</span>
+            <span className="col-val">people who deserve better</span>
+          </div>
+          <div className="col">
+            <span className="col-label">where we are</span>
+            <span className="col-val">everywhere it matters</span>
+          </div>
         </div>
         <span className="copy">© 2026 doingthings</span>
       </footer>
