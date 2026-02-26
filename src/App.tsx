@@ -55,10 +55,17 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
       const off = document.createElement('canvas');
       const isMobile = W < 768;
 
-      // Responsive font — fills ~85% of width on mobile, left-aligned
-      const fontSize = isMobile
-        ? Math.floor(W * 0.155)  // slightly larger for better visibility
+      // ── Fit font so the widest line fills ~88% of screen width ──
+      // We need to measure first, then scale to fit.
+      const probe = document.createElement('canvas').getContext('2d')!;
+      const targetW = isMobile ? W * 0.88 : Math.min(W * 0.82, 1100);
+      // Start with a rough guess then scale
+      let fontSize = isMobile
+        ? Math.floor(W * 0.12)
         : Math.floor(Math.min(W * 0.094, 136));
+      probe.font = `700 ${fontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
+      const probeMaxW = Math.max(...LINES.map(l => probe.measureText(l).width));
+      fontSize = Math.floor(fontSize * (targetW / probeMaxW));
 
       const lineGap = fontSize * 0.95;
 
@@ -76,14 +83,14 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
       LINES.forEach((line, i) => oCtx.fillText(line, 0, i * lineGap));
 
       const { data } = oCtx.getImageData(0, 0, off.width, off.height);
-      const step = isMobile ? 3 : 3; // same density on mobile for readability
+      const step = 3;
 
-      // Offset on screen — left-aligned, vertically centered in the canvas area
-      const originX = isMobile ? W * 0.05 : W * 0.055;
-      // On mobile: center the text block vertically, keeping it clear of header (~10%) and sub-block (bottom ~35%)
+      // Left margin so text starts with consistent padding
+      const originX = isMobile ? W * 0.06 : W * 0.055;
+      // Vertically: on mobile, sit in upper ~50% of viewport, clear of header & sub-block
       const textBlockHeight = LINES.length * lineGap + fontSize;
       const originY = isMobile
-        ? (H * 0.12) + (H * 0.53 - textBlockHeight) / 2  // center in top 55% of screen
+        ? H * 0.14 + Math.max(0, (H * 0.48 - textBlockHeight) / 2)
         : H * 0.22;
 
       textPixels = [];
