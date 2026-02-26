@@ -83,7 +83,7 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
       LINES.forEach((line, i) => oCtx.fillText(line, 0, i * lineGap));
 
       const { data } = oCtx.getImageData(0, 0, off.width, off.height);
-      const step = isMobile ? 4 : 3;
+      const step = isMobile ? 2 : 3;
 
       // Left margin so text starts with consistent padding
       const originX = isMobile ? W * 0.06 : W * 0.055;
@@ -165,7 +165,7 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
           tx: pt.x, ty: pt.y,
           charIdx: pt.charIdx,
           alpha: 0,
-          size: isMobile ? Math.random() * 0.6 + 0.4 : Math.random() * 1.5 + 0.6,
+          size: isMobile ? Math.random() * 0.8 + 0.8 : Math.random() * 1.5 + 0.6,
           trail: [],
           arrived: false,
           seed: Math.random() * 1000,
@@ -233,7 +233,7 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
                 d.vy = (d.vy + dy * spring) * 0.72;
                 d.x += d.vx; d.y += d.vy;
               }
-              const maxAlpha = W < 768 ? 0.65 : 0.55;
+              const maxAlpha = W < 768 ? 0.9 : 0.55;
               d.alpha = lerp(d.alpha, maxAlpha + pull * 0.1, 0.06);
             }
 
@@ -253,8 +253,8 @@ function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
               d.vx = (d.vx + (d.tx - d.x) * 0.1 + rx + breathX) * 0.72;
               d.vy = (d.vy + (d.ty - d.y) * 0.1 + ry + breathY) * 0.72;
               d.x += d.vx; d.y += d.vy;
-              const baseAlpha = W < 768 ? 0.6 : 0.55;
-              d.alpha = lerp(d.alpha, baseAlpha + Math.sin(now * 0.001 + d.seed) * 0.12, 0.04);
+              const baseAlpha = W < 768 ? 0.82 : 0.55;
+              d.alpha = lerp(d.alpha, baseAlpha + Math.sin(now * 0.001 + d.seed) * 0.1, 0.04);
             }
           }
         } else {
