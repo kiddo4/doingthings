@@ -1,459 +1,182 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { FilmScore } from './film/score';
+import { clamp, smooth, story, STORY_END, type FilmState } from './film/story';
+import ProjectBrief from './film/ProjectBrief';
+import WorldBoundary from './film/WorldBoundary';
 import './App.css';
+const World = lazy(() => import('./film/World'));
 
-type Phase = 'void' | 'ink' | 'form' | 'live';
-
-const LINES = ['doing things', 'that touch', 'lives.'];
-const WORDS_CYCLE = ['ideate.', 'research.', 'build.', 'touch lives.'];
-
-// ─────────────────────────────────────────────────────────────────
-// Main canvas — ink-drop fluid effect
-// ─────────────────────────────────────────────────────────────────
-function InkCanvas({ onPhase }: { onPhase: (p: Phase) => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const phaseRef = useRef<Phase>('void');
-  const onPhaseRef = useRef(onPhase);
-  onPhaseRef.current = onPhase;
-
-  useEffect(() => {
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext('2d')!;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-    let W = window.innerWidth;
-    let H = window.innerHeight;
-    let isMobile = W < 768;
-    let raf = 0;
-    let phaseStart = 0;
-    let textPixels: { x: number; y: number; charIdx: number }[] = [];
-    let totalChars = 0;
-
-    // Each "drop" = one ink particle that seeks its text pixel home
-    interface Drop {
-      x: number; y: number;
-      vx: number; vy: number;
-      tx: number; ty: number;  // target text pixel
-      charIdx: number;         // which character (for staggered reveal)
-      alpha: number;
-      size: number;
-      trail: { x: number; y: number; a: number }[];
-      arrived: boolean;
-      seed: number;
-      hue: number;
-    }
-
-    let drops: Drop[] = [];
-    const mouse = { x: -9999, y: -9999 };
-
-    function setPhase(p: Phase) {
-      phaseRef.current = p;
-      phaseStart = performance.now();
-      onPhaseRef.current(p);
-    }
-
-    // ── Sample text into pixel coordinates ──
-    function buildTextPixels() {
-      const off = document.createElement('canvas');
-
-      // ── Fit font so the widest line fills ~88% of screen width ──
-      // We need to measure first, then scale to fit.
-      const probe = document.createElement('canvas').getContext('2d')!;
-      const targetW = isMobile ? W * 0.88 : Math.min(W * 0.82, 1100);
-      // Start with a rough guess then scale
-      let fontSize = isMobile
-        ? Math.floor(W * 0.12)
-        : Math.floor(Math.min(W * 0.094, 136));
-      probe.font = `700 ${fontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
-      const probeMaxW = Math.max(...LINES.map(l => probe.measureText(l).width));
-      fontSize = Math.floor(fontSize * (targetW / probeMaxW));
-
-      const lineGap = fontSize * 0.95;
-
-      const oCtx = off.getContext('2d')!;
-      const fontStr = `700 ${fontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
-      oCtx.font = fontStr;
-
-      const maxW = Math.max(...LINES.map(l => oCtx.measureText(l).width));
-      off.width  = Math.ceil(maxW) + 4;
-      off.height = Math.ceil(LINES.length * lineGap) + fontSize;
-
-      oCtx.font = fontStr;
-      oCtx.fillStyle = '#fff';
-      oCtx.textBaseline = 'top';
-      LINES.forEach((line, i) => oCtx.fillText(line, 0, i * lineGap));
-
-      const { data } = oCtx.getImageData(0, 0, off.width, off.height);
-      const step = isMobile ? 2 : 3;
-
-      // Left margin so text starts with consistent padding
-      const originX = isMobile ? W * 0.06 : W * 0.055;
-      // Vertically: on mobile, sit in upper ~50% of viewport, clear of header & sub-block
-      const textBlockHeight = LINES.length * lineGap + fontSize;
-      const originY = isMobile
-        ? H * 0.14 + Math.max(0, (H * 0.48 - textBlockHeight) / 2)
-        : H * 0.22;
-
-      textPixels = [];
-      totalChars = 0;
-
-      // Per-char mapping: measure each char's x boundary
-      const charBounds: { x0: number; x1: number; line: number }[] = [];
-      LINES.forEach((line, li) => {
-        const chars = line.split('');
-        let cx = 0;
-        chars.forEach((ch) => {
-          const w = oCtx.measureText(ch).width;
-          charBounds.push({ x0: cx, x1: cx + w, line: li });
-          cx += w;
-        });
-      });
-      totalChars = charBounds.length;
-
-      for (let py = 0; py < off.height; py += step) {
-        for (let px = 0; px < off.width; px += step) {
-          if (data[(py * off.width + px) * 4 + 3] > 100) {
-            // Find which char this pixel belongs to
-            let charIdx = 0;
-            const lineIdx = Math.floor(py / lineGap);
-            let lineCharStart = 0;
-            for (let li = 0; li < lineIdx && li < LINES.length; li++) {
-              lineCharStart += LINES[li].split('').length;
-            }
-            for (let ci = lineCharStart; ci < charBounds.length; ci++) {
-              if (charBounds[ci].line === lineIdx && px >= charBounds[ci].x0 && px < charBounds[ci].x1) {
-                charIdx = ci;
-                break;
-              }
-            }
-            textPixels.push({
-              x: originX + px,
-              y: originY + py,
-              charIdx,
-            });
-          }
-        }
-      }
-    }
-
-    // ── Spawn ink drops ──
-    function spawnDrops() {
-      drops = textPixels.map((pt) => {
-        // Each drop starts from a random edge or center smear
-        const spawnType = Math.random();
-        let sx: number, sy: number;
-
-        if (spawnType < 0.35) {
-          // Falls from top like real ink drop
-          sx = pt.x + (Math.random() - 0.5) * W * 0.4;
-          sy = -Math.random() * H * 0.3;
-        } else if (spawnType < 0.6) {
-          // Rises from bottom
-          sx = pt.x + (Math.random() - 0.5) * W * 0.3;
-          sy = H + Math.random() * H * 0.2;
-        } else {
-          // Radial burst from center
-          const angle = Math.random() * Math.PI * 2;
-          const r = Math.random() * Math.min(W, H) * 0.6 + 100;
-          sx = W * 0.5 + Math.cos(angle) * r;
-          sy = H * 0.5 + Math.sin(angle) * r;
-        }
-
-        return {
-          x: sx, y: sy,
-          vx: (Math.random() - 0.5) * 2,
-          vy: (Math.random() - 0.5) * 2,
-          tx: pt.x, ty: pt.y,
-          charIdx: pt.charIdx,
-          alpha: 0,
-          size: isMobile ? Math.random() * 0.8 + 0.8 : Math.random() * 1.5 + 0.6,
-          trail: [],
-          arrived: false,
-          seed: Math.random() * 1000,
-          hue: 0, // pure white; could tint later
-        };
-      });
-    }
-
-    // ── Draw loop ──
-    function tick(now: number) {
-      const el = now - phaseStart;
-      const phase = phaseRef.current;
-
-      // Phase transitions
-      if (phase === 'void' && el > 600)  setPhase('ink');
-      if (phase === 'ink'  && el > 1000) setPhase('form');
-      if (phase === 'form' && el > 5500) setPhase('live');
-
-      ctx.clearRect(0, 0, W, H);
-
-      // Soft spotlight
-      if (phase !== 'void') {
-        const beamT = phase === 'ink' ? Math.min(el / 800, 1) : 1;
-        const bAlpha = easeOut(beamT) * (phase === 'live' ? 0.045 : 0.09);
-        const grad = ctx.createRadialGradient(W * 0.45, 0, 0, W * 0.45, H * 0.5, H * 0.9);
-        grad.addColorStop(0,   `rgba(255,255,255,${bAlpha})`);
-        grad.addColorStop(0.4, `rgba(255,255,255,${bAlpha * 0.3})`);
-        grad.addColorStop(1,   'rgba(0,0,0,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      if (phase === 'void') { raf = requestAnimationFrame(tick); return; }
-
-      const charRevealDuration = 5000; // ms for all chars to form
-      const perCharDelay = charRevealDuration / Math.max(totalChars, 1);
-
-      for (const d of drops) {
-        const charDelay = d.charIdx * perCharDelay;
-        const charElapsed = el - charDelay;
-
-        if (phase === 'form' || phase === 'live') {
-          if (charElapsed < 0) {
-            // Not yet time for this char — drift gently
-            d.vx += (Math.random() - 0.5) * 0.1;
-            d.vy += (Math.random() - 0.5) * 0.1;
-            d.vx *= 0.96; d.vy *= 0.96;
-            d.x += d.vx; d.y += d.vy;
-            d.alpha = lerp(d.alpha, 0.06, 0.04);
-          } else {
-            // Pull toward home
-            const progress = Math.min(charElapsed / 1800, 1);
-            const pull = easeOutElastic(progress);
-
-            if (!d.arrived) {
-              const dx = d.tx - d.x, dy = d.ty - d.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-
-              if (dist < 1.5) {
-                d.arrived = true;
-                d.x = d.tx; d.y = d.ty;
-              } else {
-                const spring = 0.055 + pull * 0.09;
-                d.vx = (d.vx + dx * spring) * 0.72;
-                d.vy = (d.vy + dy * spring) * 0.72;
-                d.x += d.vx; d.y += d.vy;
-              }
-              const maxAlpha = W < 768 ? 0.9 : 0.55;
-              d.alpha = lerp(d.alpha, maxAlpha + pull * 0.1, 0.06);
-            }
-
-            if (d.arrived && phase === 'live') {
-              // Breathing + mouse repulsion
-              const mx = mouse.x, my = mouse.y;
-              const ddx = d.x - mx, ddy = d.y - my;
-              const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-              const rR = 120;
-              let rx = 0, ry = 0;
-              if (dist < rR && dist > 0) {
-                const f = Math.pow((rR - dist) / rR, 1.6) * 9;
-                rx = (ddx / dist) * f; ry = (ddy / dist) * f;
-              }
-              const breathX = Math.cos(now * 0.00055 + d.seed) * 0.7;
-              const breathY = Math.sin(now * 0.00072 + d.seed * 1.3) * 0.7;
-              d.vx = (d.vx + (d.tx - d.x) * 0.1 + rx + breathX) * 0.72;
-              d.vy = (d.vy + (d.ty - d.y) * 0.1 + ry + breathY) * 0.72;
-              d.x += d.vx; d.y += d.vy;
-              const baseAlpha = W < 768 ? 0.82 : 0.55;
-              d.alpha = lerp(d.alpha, baseAlpha + Math.sin(now * 0.001 + d.seed) * 0.1, 0.04);
-            }
-          }
-        } else {
-          // 'ink' phase — chaos drift
-          d.vx += (Math.random() - 0.5) * 0.15;
-          d.vy += (Math.random() - 0.5) * 0.15;
-          d.vx *= 0.97; d.vy *= 0.97;
-          d.x += d.vx; d.y += d.vy;
-          const t = Math.min(el / 800, 1);
-          d.alpha = lerp(d.alpha, easeOut(t) * 0.18, 0.04);
-        }
-
-        if (d.alpha < 0.01) continue;
-
-        // Glow halo on bright particles — skip on mobile to keep text crisp
-        if (!isMobile && d.alpha > 0.3 && d.size > 1.0) {
-          const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.size * 5);
-          g.addColorStop(0, `rgba(255,255,255,${d.alpha * 0.18})`);
-          g.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.beginPath();
-          ctx.arc(d.x, d.y, d.size * 5, 0, Math.PI * 2);
-          ctx.fillStyle = g; ctx.fill();
-        }
-
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${d.alpha})`;
-        ctx.fill();
-      }
-
-      // Ambient free particles on top (always drifting)
-      // drawn via noise overlay (CSS), so just tick
-      raf = requestAnimationFrame(tick);
-    }
-
-    function easeOut(t: number) {
-      return 1 - Math.pow(1 - t, 3);
-    }
-
-    function easeOutElastic(t: number) {
-      if (t === 0) return 0;
-      if (t === 1) return 1;
-      return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
-    }
-
-    function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
-
-    function init() {
-      buildTextPixels();
-      spawnDrops();
-      setPhase('void');
-    }
-
-    function resize() {
-      W = window.innerWidth; H = window.innerHeight;
-      isMobile = W < 768;
-      canvas.width  = W * dpr; canvas.height = H * dpr;
-      canvas.style.width  = W + 'px'; canvas.style.height = H + 'px';
-      ctx.scale(dpr, dpr);
-      init();
-    }
-
-    const onMM = (e: MouseEvent) => { mouse.x = e.clientX; mouse.y = e.clientY; };
-    const onTM = (e: TouchEvent) => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; };
-    window.addEventListener('mousemove', onMM);
-    window.addEventListener('touchmove', onTM, { passive: true });
-    window.addEventListener('resize', resize);
-
-    resize();
-    raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('mousemove', onMM);
-      window.removeEventListener('touchmove', onTM);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="ink-canvas" />;
-}
-
-// ─────────────────────────────────────────────────────────────────
-// Ambient floating particles (CSS-driven, layered behind)
-// ─────────────────────────────────────────────────────────────────
-function AmbientField() {
-  const count = 28;
-  return (
-    <div className="ambient-field" aria-hidden>
-      {Array.from({ length: count }).map((_, i) => (
-        <span
-          key={i}
-          className="mote"
-          style={{
-            left:  `${Math.random() * 100}%`,
-            top:   `${Math.random() * 100}%`,
-            width:  `${Math.random() * 2 + 0.5}px`,
-            height: `${Math.random() * 2 + 0.5}px`,
-            animationDelay:    `${Math.random() * 8}s`,
-            animationDuration: `${Math.random() * 14 + 10}s`,
-            opacity: Math.random() * 0.25 + 0.05,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────
-// Typewriter cycling words
-// ─────────────────────────────────────────────────────────────────
-function TypeWriter({ active }: { active: boolean }) {
-  const [idx, setIdx] = useState(0);
-  const [text, setText] = useState('');
-  const [del, setDel] = useState(false);
-
-  useEffect(() => {
-    if (!active) return;
-    const word = WORDS_CYCLE[idx];
-    let t: ReturnType<typeof setTimeout>;
-    if (!del) {
-      if (text.length < word.length) {
-        t = setTimeout(() => setText(word.slice(0, text.length + 1)), 75);
-      } else {
-        t = setTimeout(() => setDel(true), 2200);
-      }
-    } else {
-      if (text.length > 0) {
-        t = setTimeout(() => setText(t2 => t2.slice(0, -1)), 38);
-      } else {
-        setDel(false);
-        setIdx(i => (i + 1) % WORDS_CYCLE.length);
-      }
-    }
-    return () => clearTimeout(t);
-  }, [active, text, del, idx]);
-
-  return (
-    <span className="tw-wrap">
-      <span className="tw-text">{text}</span>
-      <span className={`tw-cursor${active ? ' blink' : ''}`} />
-    </span>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────
-// App
-// ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [phase, setPhase] = useState<Phase>('void');
-  const handlePhase = useCallback((p: Phase) => setPhase(p), []);
-  const live = phase === 'live';
+  const [entered, setEntered] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [sound, setSound] = useState(false);
+  const [soundError, setSoundError] = useState(false);
+  const [motion, setMotion] = useState(() => !matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [menu, setMenu] = useState(false);
+  const [brief, setBrief] = useState(false);
+  const film = useRef<HTMLElement>(null);
+  const screen = useRef<HTMLDivElement>(null);
+  const entrance = useRef<HTMLDialogElement>(null);
+  const score = useRef<FilmScore | null>(null);
+  const state = useRef<FilmState>({ progress: 0, pointerX: 0, pointerY: 0, entered: false, motion, pulse: 0 });
+  const sceneIndex = Math.min(story.length - 1, Math.floor(progress));
+  const hasEnded = progress >= STORY_END - 0.04;
+  const onReady = useCallback(() => setReady(true), []);
 
-  return (
-    <div className="shell">
-      <div className="grain" />
-      <AmbientField />
+  useEffect(() => {
+    entrance.current?.showModal();
+    return () => { score.current?.dispose(); score.current = null; };
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.motion = motion ? 'on' : 'off';
+    state.current.motion = motion; state.current.entered = entered;
+    window.dispatchEvent(new Event('film-state-change'));
+  }, [motion, entered]);
+  useEffect(() => {
+    const media = matchMedia('(prefers-reduced-motion: reduce)');
+    const change = () => { setMotion(!media.matches); if (media.matches) setPlaying(false); };
+    media.addEventListener('change', change);
+    return () => media.removeEventListener('change', change);
+  }, []);
+  useEffect(() => {
+    document.body.style.overflow = !entered || brief ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [entered, brief]);
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const height = screen.current?.clientHeight || innerHeight;
+      const top = film.current?.getBoundingClientRect().top || 0;
+      const p = clamp(-top / height, 0, STORY_END);
+      state.current.progress = p;
+      setProgress(p);
+      score.current?.scene(Math.min(story.length - 1, Math.floor(p)));
+    };
+    const scroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const visibility = () => {
+      if (document.hidden) { score.current?.suspend(); setPlaying(false); }
+      else score.current?.resume();
+    };
+    window.addEventListener('scroll', scroll, { passive: true }); window.addEventListener('resize', scroll);
+    document.addEventListener('visibilitychange', visibility); update();
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', scroll); window.removeEventListener('resize', scroll); document.removeEventListener('visibilitychange', visibility); };
+  }, []);
+  useEffect(() => {
+    if (!playing || !entered || !motion || brief) return;
+    let frame = 0, previous = 0;
+    const step = (now: number) => {
+      const elapsed = previous ? Math.min(now - previous, 80) : 0; previous = now;
+      const height = screen.current?.clientHeight || innerHeight;
+      const p = state.current.progress;
+      if (p >= STORY_END - 0.04) { setPlaying(false); return; }
+      // Each scene gets about nine seconds; browser scrolling remains native.
+      window.scrollBy({ top: elapsed * height / 9000, behavior: 'instant' });
+      frame = requestAnimationFrame(step);
+    };
+    const interrupt = () => setPlaying(false);
+    const key = (event: KeyboardEvent) => { if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) interrupt(); };
+    window.addEventListener('wheel', interrupt, { passive: true }); window.addEventListener('touchstart', interrupt, { passive: true }); window.addEventListener('keydown', key);
+    frame = requestAnimationFrame(step);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('wheel', interrupt); window.removeEventListener('touchstart', interrupt); window.removeEventListener('keydown', key); };
+  }, [playing, entered, motion, brief]);
 
-      <div className={`glow phase-${phase}`} />
+  const toggleSound = async (enable = !sound) => {
+    if (!score.current) score.current = new FilmScore();
+    if (enable) {
+      try { await score.current.enable(); score.current.scene(sceneIndex); setSound(true); setSoundError(false); }
+      catch { setSound(false); setSoundError(true); }
+    } else { score.current.mute(); setSound(false); }
+  };
+  const enter = (audio: boolean) => {
+    if (audio) void toggleSound(true);
+    entrance.current?.close(); setEntered(true); window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+  const go = (index: number) => {
+    setPlaying(false); setMenu(false);
+    const height = screen.current?.clientHeight || innerHeight;
+    window.scrollTo({ top: (film.current?.offsetTop || 0) + (index === 0 ? 0 : index + 0.24) * height, behavior: motion ? 'smooth' : 'instant' });
+  };
+  const openBrief = () => { setPlaying(false); setMenu(false); setBrief(true); };
+  const playFilm = () => {
+    if (playing) { setPlaying(false); return; }
+    if (hasEnded) {
+      window.scrollTo({ top: film.current?.offsetTop || 0, behavior: 'instant' });
+      state.current.progress = 0;
+      setProgress(0);
+    }
+    setPlaying(true);
+  };
+  const sceneOpacity = (index: number) => {
+    const local = progress - index;
+    if (local < 0 || local >= 1) return 0;
+    const incoming = index === 0 ? 1 : smooth(local / 0.16);
+    return incoming * (index === story.length - 1 ? 1 : 1 - smooth((local - 0.8) / 0.2));
+  };
+  const handover = smooth((progress - 7.9) * 2) * (1 - smooth((progress - 9) * 2));
+  const still = smooth((progress - 9.95) * 3) * (1 - smooth((progress - 10.85) * 4));
 
-      <InkCanvas onPhase={handlePhase} />
-
-      {/* Header */}
-      <header className={`hdr${live ? ' in' : ''}`}>
-        <span className="wordmark">
-          <span className="wm-a">doing</span><span className="wm-b">things</span>
-        </span>
-        <a href="mailto:hello@doingthings.studio" className="contact-link">
-          contact
-        </a>
-      </header>
-
-      {/* Sub-tagline — floats below the text block */}
-      <div className={`sub-block${live ? ' in' : ''}`}>
-        <p className="sub-line">
-          We&nbsp;<TypeWriter active={live} />
-        </p>
-        <p className="sub-desc">
-          A product studio. Thoughtful software for people who deserve better.
-        </p>
-      </div>
-
-      {/* Footer */}
-      <footer className={`ftr${live ? ' in' : ''}`}>
-        <div className="cols">
-          <div className="col">
-            <span className="col-label">what we do</span>
-            <span className="col-val">research · design · build</span>
+  return <div className={`cinema ${entered ? 'has-entered' : ''}`}>
+    <a className="skip-link" href="#after-film" onClick={() => { setPlaying(false); if (!entered) enter(false); }}>Skip the film</a>
+    <header className="film-header" inert={!entered}>
+      <button className="wordmark" onClick={() => go(0)} aria-label="doingthings, back to the beginning">doing<span>things</span><i /></button>
+      <span className="header-title">a story about making people feel.</span>
+      <button className="header-cta" onClick={openBrief}>start your story <span aria-hidden="true">↗</span></button>
+    </header>
+    <main>
+      <section className="film-scroll" ref={film} id="top" style={{ height: `${(story.length + 1) * 100}svh` }} aria-label="The doingthings film">
+        <div className={`film-screen scene-${sceneIndex}`} ref={screen} onPointerMove={event => {
+          if (event.pointerType === 'touch') return;
+          state.current.pointerX = event.clientX / innerWidth - 0.5;
+          state.current.pointerY = event.clientY / innerHeight - 0.5;
+        }} onPointerLeave={() => { state.current.pointerX = 0; state.current.pointerY = 0; }} onPointerDown={event => {
+          if (!(event.target as HTMLElement).closest('a,button,input,dialog')) { state.current.pulse++; score.current?.spark(); window.dispatchEvent(new Event('film-state-change')); }
+        }}>
+          <div className="stage-still" style={{ opacity: still }}><img src="/art/becoming.webp" alt="" /></div>
+          <div className="handover-art" style={{ opacity: handover * 0.72 }}><img src="/art/together.webp" alt="" /></div>
+          <WorldBoundary onReady={onReady}><Suspense fallback={<div className="world-loading" />}><World state={state} onReady={onReady} /></Suspense></WorldBoundary>
+          <div className={`cinema-shade ${sceneIndex >= 7 ? 'center-shade' : ''}`} />
+          <div className="film-grain" aria-hidden="true" />
+          <div className="letterbox top" aria-hidden="true" /><div className="letterbox bottom" aria-hidden="true" />
+          <div className="screenplay" inert={!entered}>
+            {story.map((scene, index) => {
+              const opacity = sceneOpacity(index);
+              return <article key={scene.name} className={`shot ${scene.layout}`} aria-hidden={opacity < 0.1} inert={opacity < 0.1} style={{ opacity: entered ? opacity : 0, visibility: opacity > 0 ? 'visible' : 'hidden', transform: motion ? `translateY(${(1 - opacity) * 20}px)` : undefined }}>
+                <p className="shot-lead">{scene.lead}</p>
+                {index === 0 ? <h1>{scene.title}<br /><em>{scene.italic}</em></h1> : <h2>{scene.title}<br /><em>{scene.italic}</em></h2>}
+                <p className="shot-line">{scene.line}</p>
+                {'craft' in scene && <p className="shot-craft">{scene.craft}</p>}
+                {index === 0 && <button className="begin-scroll" onClick={() => go(1)}><span aria-hidden="true">↓</span>follow the feeling</button>}
+                {index === story.length - 1 && <button className="join-scene" onClick={openBrief}>let’s make it real <span aria-hidden="true">↗</span></button>}
+              </article>;
+            })}
           </div>
-          <div className="col">
-            <span className="col-label">who we serve</span>
-            <span className="col-val">people who deserve better</span>
-          </div>
-          <div className="col">
-            <span className="col-label">where we are</span>
-            <span className="col-val">everywhere it matters</span>
-          </div>
+          <span className="touch-note" aria-hidden="true" style={{ opacity: entered && progress < 0.8 ? 0.6 : 0 }}>move a little. the world moves with you.</span>
         </div>
-        <span className="copy">© 2026 doingthings</span>
-      </footer>
+      </section>
+      <section className="after-film" id="after-film" inert={!entered}>
+        <div className="after-image"><img src="/art/together.webp" alt="Two hands passing a silver thread, a connection made" loading="lazy" /></div>
+        <div className="after-copy"><span className="whisper">the film ends. the possibilities don’t.</span><h2>A little belief.<br /><em>A world of possibility.</em></h2><p>We’re doingthings. A product studio bringing technology, music, beauty, art, and thoughtful products into the same room.</p><p>We research. We imagine. We build.<br />For people who deserve to feel something.</p><button className="underlined" onClick={openBrief}>bring us your what-if <span aria-hidden="true">↗</span></button></div>
+      </section>
+      <section className="finale" inert={!entered} aria-labelledby="finale-title"><span className="whisper">starring, perhaps, you.</span><h2 id="finale-title"><button onClick={openBrief}>Write the<br /><em>next scene.</em><span className="finale-arrow" aria-hidden="true">↗</span></button></h2><div className="finale-bottom"><p>No perfect brief needed.<br />Just something you believe in.</p><a href="mailto:smith@doingthings.xyz">smith@doingthings.xyz ↗</a></div></section>
+    </main>
+    <footer className="credits" inert={!entered}><button onClick={() => go(0)}>watch again ↺</button><span>doingthings · everywhere it matters</span><span>© {new Date().getFullYear()}</span></footer>
+    <div className="film-controls" inert={!entered}>
+      <div className="chapter-control" onKeyDown={event => { if (event.key === 'Escape') { setMenu(false); event.currentTarget.querySelector('button')?.focus(); } }}><button className="current-scene" aria-expanded={menu} aria-controls="scene-menu" onClick={() => setMenu(!menu)}><span className="scene-dot" />{story[sceneIndex].name}<span aria-hidden="true">{menu ? '−' : '+'}</span></button>
+        {menu && <nav className="scene-menu" id="scene-menu" aria-label="Jump to a scene"><span className="whisper">find your scene</span>{story.map((scene, index) => <button key={scene.name} aria-current={sceneIndex === index ? 'step' : undefined} onClick={() => go(index)}>{scene.name}<span aria-hidden="true">↗</span></button>)}</nav>}
+      </div>
+      <div className="film-track" aria-hidden="true"><span style={{ transform: `scaleX(${progress / STORY_END})` }} /></div>
+      <span className="scroll-prompt">{playing ? 'sit back. feel something.' : hasEnded ? 'the next scene is yours' : 'scroll to unfold'}</span>
+      <div className="playback-controls"><button className="play-button" onClick={playFilm} disabled={!motion} aria-label={playing ? 'Pause film' : 'Play film automatically'} aria-pressed={playing}><span aria-hidden="true">{playing ? 'Ⅱ' : '▷'}</span><span>{playing ? 'pause' : 'play film'}</span></button><button className={`sound-button ${sound ? 'sound-on' : ''}`} onClick={() => void toggleSound()} aria-label={sound ? 'Mute sound' : 'Enable sound'} aria-pressed={sound}><span className="sound-bars" aria-hidden="true"><i /><i /><i /><i /></span><span>sound {sound ? 'on' : 'off'}</span></button><button className="motion-button" aria-label={motion ? 'Reduce motion' : 'Enable motion'} aria-pressed={motion} onClick={() => { setMotion(!motion); setPlaying(false); }}>{motion ? '◉' : '○'}</button></div>
     </div>
-  );
+    {soundError && <p className="audio-notice" role="status">Sound couldn’t start. You can still explore the film in silence.</p>}
+    <dialog ref={entrance} className="entrance" aria-labelledby="entrance-title" onCancel={event => { event.preventDefault(); enter(false); }}>
+      <div className="entrance-brand">doingthings<span>presents</span></div>
+      <div className="entrance-body"><p className="whisper">a small myth. an infinite possibility.</p><h2 id="entrance-title">Some things<br />are worth<br /><em>feeling.</em></h2><p className="entrance-line">A journey from the gods of making<br />to whatever comes next.</p><div className="entry-actions"><button className="enter-button" onClick={() => enter(true)}>enter with sound <span aria-hidden="true">↗</span></button><button className="enter-silent" onClick={() => enter(false)}>explore in silence</button></div></div>
+      <div className="entrance-footer"><span>{ready ? 'headphones make it a little more magical.' : 'the world is waking up…'}</span><span>scroll to explore · or press play and drift</span></div>
+    </dialog>
+    <ProjectBrief open={brief} onClose={() => setBrief(false)} />
+  </div>;
 }

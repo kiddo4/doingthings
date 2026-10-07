@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# doingthings — a small myth about making
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive short film for a product studio. Twelve scenes carry a fictional
+story from the gods of making to the next project: an awakening, five gifts, the
+fracture, the handover, doingthings, and the visitor's own next scene.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm ci
+npm run dev
+npm run build
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+`dist/` is the static production output. No live deployment has been performed.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Film architecture
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- `src/App.tsx`: entrance, native scroll timeline, screenplay, automatic playback,
+  scene navigation, sound and motion controls, ending, and inquiry state.
+- `src/film/story.ts`: all screenplay text and scene order.
+- `src/film/World.tsx`: real Three.js WebGL geometry, studio reflections, five
+  distinct artifacts, camera push, instanced fragments, starlight, and selective bloom.
+- `src/film/WorldBoundary.tsx`: illustrated fallback when the 3D module fails.
+- `src/film/score.ts`: original Web Audio harmonic bed, felt-like notes, reverb,
+  stereo panning, and chapter-dependent transition washes. No external audio files.
+- `src/film/ProjectBrief.tsx`: local form validation and a reviewable email draft.
+- `public/art/`: the original generated artwork, preserved in this iteration.
+- `docs/art-direction.md`: original image prompts and earlier research.
+- `docs/film-direction.md`: the updated direction and implementation notes.
+
+The visitor chooses sound or silence before entering. Audio starts only after a
+user gesture. Playback follows natural scrolling; wheel, touch, and navigation keys
+stop autoplay. A scene menu allows direct navigation without chapter numbering.
+Audio is suspended and autoplay stops when the page is hidden. The 3D renderer stops
+when hidden or offscreen, caps pixel density and its render rate, and disposes GPU
+resources on unmount. Reduced-motion users receive static 3D compositions and native
+manual scene navigation. A motion control remains available throughout the film.
+
+The sculpture is original procedural 3D inspired by the silver artwork; the source
+image has not been converted into a scanned 3D model. The five spirits are fictional
+storytelling characters, not claims about historical mythology or client projects.
+
+The brief prepares a mailto draft; the visitor reviews and sends it in their own
+email app. There is no backend submission, booking provider, or delivery claim.
+Contact remains `smith@doingthings.xyz`. KidoBuild projects are intentionally deferred.
+
+Fonts load from Google Fonts with local system fallbacks. No analytics provider is
+installed. Retention and conversion improvements have not been measured.
