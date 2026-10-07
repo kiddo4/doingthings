@@ -163,7 +163,7 @@ export default function App() {
                 {index === 0 ? <h1>{scene.title}<br /><em>{scene.italic}</em></h1> : <h2>{scene.title}<br /><em>{scene.italic}</em></h2>}
                 <p className="shot-line">{scene.line}</p>
                 {'craft' in scene && <p className="shot-craft">{scene.craft}</p>}
-                {index === 0 && <button className="begin-scroll" onClick={() => go(1)}><span aria-hidden="true">↓</span>see how an idea becomes real</button>}
+                {index === 0 && <button className="begin-scroll" onClick={() => go(1)}><span aria-hidden="true">↓</span>see where it could go</button>}
                 {index === story.length - 1 && <button className="join-scene" onClick={openBrief}>let’s make it real <span aria-hidden="true">↗</span></button>}
               </article>;
             })}
@@ -173,13 +173,13 @@ export default function App() {
       </section>
       <section className="after-film" id="after-film">
         <div className="after-image"><img src="/art/together.webp" alt="Two hands passing a silver thread, a connection made" loading="lazy" /></div>
-        <div className="after-copy"><span className="whisper">a software product studio. from idea to impact.</span><h2>You bring the what-if.<br /><em>We make it work.</em></h2><p>We’re doingthings. We help founders and teams turn ambitious ideas into software products people can use.</p><p>From understanding the problem to designing the experience and engineering the product. One team, thinking and building with you.</p><button className="underlined" onClick={openBrief}>bring us your what-if <span aria-hidden="true">↗</span></button></div>
+        <div className="after-copy"><span className="whisper">a software product studio. from idea to impact.</span><h2>You bring the what-if.<br /><em>We make it work.</em></h2><p>We’re doingthings. We help founders and teams turn ambitious ideas into software, AI-powered products, and useful agents.</p><p>From understanding the problem to designing the experience, building the product, and connecting the tools behind it. One team, thinking and building with you.</p><button className="underlined" onClick={openBrief}>bring us your what-if <span aria-hidden="true">↗</span></button></div>
       </section>
       <section className="services" id="services" aria-labelledby="services-title">
         <div className="services-intro"><span className="whisper">what we can do together</span><h2 id="services-title">A thought. A prototype.<br /><em>A product in the world.</em></h2><p>Come with a question or a brief. Start with one part, or build the whole thing with us.</p></div>
         <div className="service-list">{services.map(service => <button key={service.name} onClick={openBrief} className="service-item"><span className="service-name">{service.name}<span aria-hidden="true">↗</span></span><span className="service-detail">{service.detail}</span><span className="service-deliverables">{service.deliverables}</span></button>)}</div>
       </section>
-      <section className="finale" aria-labelledby="finale-title"><span className="whisper">starring, perhaps, you.</span><h2 id="finale-title"><button onClick={openBrief}>Write the<br /><em>next scene.</em><span className="finale-arrow" aria-hidden="true">↗</span></button></h2><div className="finale-bottom"><p>No perfect brief needed.<br />Just something you believe in.</p><a href="mailto:smith@doingthings.xyz">smith@doingthings.xyz ↗</a></div></section>
+      <section className="finale" aria-labelledby="finale-title"><span className="whisper">one day can start here.</span><h2 id="finale-title"><button onClick={openBrief}>Write the<br /><em>next scene.</em><span className="finale-arrow" aria-hidden="true">↗</span></button></h2><div className="finale-bottom"><p>No perfect brief needed.<br />Just something you believe in.</p><a href="mailto:smith@doingthings.xyz">smith@doingthings.xyz ↗</a></div></section>
     </main>
     <footer className="credits"><button onClick={() => go(0)}>watch again ↺</button><span>doingthings · everywhere it matters</span><span>© {new Date().getFullYear()}</span></footer>
     <div className="film-controls">

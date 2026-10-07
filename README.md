@@ -1,8 +1,8 @@
-# doingthings — a small myth about making
+# doingthings — an idea, becoming
 
-An interactive short film for a software product studio. Twelve scenes carry a fictional
-story from the gods of making to the next project: an awakening, five gifts, the
-fracture, the handover, doingthings, and the visitor's own next scene.
+An interactive short film for a software product studio. Twelve scenes follow a
+human story: a small frustration, the question it raises, research, possibilities,
+design, engineering, AI and agents, iteration, real use, and the visitor’s next project.
 
 ## Run
 
@@ -30,9 +30,8 @@ npm run lint
 - `docs/art-direction.md`: original image prompts and earlier research.
 - `docs/film-direction.md`: the updated direction and implementation notes.
 
-The story opens immediately and plays automatically in about 78 seconds. Research,
-ideation, design, engineering, and iteration connect the fictional gifts to the
-studio’s actual services. A persistent services link and project action let visitors
+The story opens immediately and plays automatically in about 85 seconds. Research,
+ideation, design, engineering, and AI connect the story to the studio’s services. A persistent services link and project action let visitors
 take a direct route. Sound attempts autoplay and retries on the first click, tap, or
 key press when the browser requires interaction. Explicit mute disables automatic
 retries for that visit. Playback follows natural scrolling; wheel, touch, and
@@ -43,8 +42,7 @@ resources on unmount. Reduced-motion users receive static 3D compositions and na
 manual scene navigation. A motion control remains available throughout the film.
 
 The sculpture is original procedural 3D inspired by the silver artwork; the source
-image has not been converted into a scanned 3D model. The five spirits are fictional
-storytelling characters, not claims about historical mythology or client projects.
+image has not been converted into a scanned 3D model. The narrative is an illustrative product journey, not a client case study.
 
 The brief prepares a mailto draft; the visitor reviews and sends it in their own
 email app. There is no backend submission, booking provider, or delivery claim.

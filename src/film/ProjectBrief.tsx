@@ -22,7 +22,7 @@ export default function ProjectBrief({ open, onClose }: { open: boolean; onClose
     <form onSubmit={prepare} hidden={ready}>
       <div className="form-row"><label>Your name<input name="name" autoComplete="name" required maxLength={100} placeholder="What should we call you?" /></label><label>Your email<input name="email" type="email" autoComplete="email" required maxLength={200} placeholder="you@somewhere.com" /></label></div>
       <label>The idea<textarea name="idea" required minLength={5} maxLength={3000} rows={3} placeholder="A half-formed thought is a perfectly good start." /></label>
-      <label>What could we help with?<select name="service"><option>Let’s discover it together</option><option>Research & strategy</option><option>Ideation & prototyping</option><option>Product design (UX/UI)</option><option>Software development</option><option>End-to-end product build</option></select></label>
+      <label>What could we help with?<select name="service"><option>Let’s discover it together</option><option>Research & strategy</option><option>Ideation & prototyping</option><option>Product design (UX/UI)</option><option>Software development</option><option>AI-powered products</option><option>AI agents & automation</option><option>End-to-end product build</option></select></label>
       <button type="submit" className="brief-submit">write the first line <span aria-hidden="true">↗</span></button>
       <p className="form-note">We’ll prepare an email for you to review and send.</p>
     </form>

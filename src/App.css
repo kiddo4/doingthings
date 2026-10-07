@@ -47,11 +47,11 @@ button { font-weight:400; }
 .shot.center { text-align:center; align-items:center; }
 .shot.center h2 { font-size:clamp(48px,6.7vw,116px); max-width:100%; }
 .shot.center .shot-line { max-width:480px; }
-.shot.god { padding-top:100px; }
-.shot.god .shot-lead { text-transform:uppercase; letter-spacing:2px; font-size:9px; }
-.shot.god h2 { font-size:clamp(70px,9.5vw,170px); letter-spacing:-.075em; line-height:.85; max-width:48%; }
-.shot.god h2 em { display:inline-block; font-size:.32em; letter-spacing:-.02em; line-height:1.18; margin-top:35px; max-width:10em; }
-.shot.god .shot-line { max-width:29ch; font-size:13px; color:#aaa69b; margin-top:30px; }
+.shot.craft { padding-top:100px; }
+.shot.craft .shot-lead { text-transform:uppercase; letter-spacing:2px; font-size:9px; }
+.shot.craft h2 { font-size:clamp(70px,9.5vw,170px); letter-spacing:-.075em; line-height:.85; max-width:48%; }
+.shot.craft h2 em { display:inline-block; font-size:.32em; letter-spacing:-.02em; line-height:1.18; margin-top:35px; max-width:10em; }
+.shot.craft .shot-line { max-width:29ch; font-size:13px; color:#aaa69b; margin-top:30px; }
 .shot-craft { margin-top:40px; font-size:10px; color:#d1cbba; max-width:35ch; line-height:1.8; padding-top:15px; border-top:1px solid #e6e0cf40; }
 .shot.fall h2 { font-size:clamp(52px,7.5vw,135px); }
 .shot.fall .shot-line { max-width:360px; }
@@ -98,22 +98,22 @@ button { font-weight:400; }
 .project-dialog { background:#e8e4d9; color:#1c1d17; border:1px solid #65675d; padding:45px; width:min(650px,calc(100% - 30px)); max-height:calc(100svh - 40px); overflow:auto; }
 .project-dialog::backdrop { background:#050505db; backdrop-filter:blur(14px); }.dialog-close { position:absolute; right:20px; top:12px; font-size:34px; line-height:1; padding:8px; }.project-dialog h2 { font-size:64px; line-height:.95; letter-spacing:-3px; font-weight:450; margin:25px 0 30px; }.project-dialog form { display:grid; gap:25px; }.project-dialog form[hidden] { display:none; }.form-row { display:grid; grid-template-columns:1fr 1fr; gap:25px; }.project-dialog label { font-size:11px; display:flex; flex-direction:column; gap:10px; }.project-dialog input,.project-dialog textarea,.project-dialog select { border:0; border-bottom:1px solid #18191755; border-radius:0; background:transparent; color:#22231f; padding:12px 0; font-size:13px; width:100%; min-width:0; }.project-dialog textarea { resize:vertical; }.brief-submit { display:flex; justify-content:space-between; align-items:center; padding:18px 22px; color:#e8e6df; background:#191a18; font-size:12px; width:100%; text-align:left; }.brief-submit>span { font-size:23px; }.form-note { font-size:10px!important; color:#6c6d63; line-height:1.6; }.brief-ready { display:grid; gap:20px; }.brief-ready>p { font-size:22px; }.brief-ready>span { font-size:14px; line-height:1.6; color:#64665d; }.brief-ready .underlined { justify-self:start; border-color:#18191755; margin:0; }.project-dialog :focus-visible { outline-color:#45483b; }.audio-notice { position:fixed; bottom:100px; right:var(--pad); z-index:50; background:#181812; color:#e5dece; padding:15px; font-size:12px; max-width:300px; }
 @keyframes beckon { 50% { transform:translateY(7px); } }@keyframes equalize { from {height:3px} to {height:13px} }
-@media(min-width:1700px) { .shot.god h2 { max-width:42%; } }
+@media(min-width:1700px) { .shot.craft h2 { max-width:42%; } }
 @media(max-width:950px) {
-  .header-title { display:none; }.film-controls { gap:20px; }.scroll-prompt { display:none; }.film-track { max-width:none; }.playback-controls { gap:20px; }.shot.god h2 { font-size:12vw; }.shot.god .shot-line { max-width:26ch; }.after-film { gap:6%; min-height:700px; padding-block:110px; }.after-image { height:500px; }.after-copy p { font-size:12px; }
+  .header-title { display:none; }.film-controls { gap:20px; }.scroll-prompt { display:none; }.film-track { max-width:none; }.playback-controls { gap:20px; }.shot.craft h2 { font-size:12vw; }.shot.craft .shot-line { max-width:26ch; }.after-film { gap:6%; min-height:700px; padding-block:110px; }.after-image { height:500px; }.after-copy p { font-size:12px; }
 }
 @media(max-width:700px) {
   .film-header { top:28px; }.wordmark { font-size:21px; }.header-cta { font-size:10px; gap:17px; }.header-cta>span { font-size:18px; }
   .letterbox { height:12px; }.cinema-shade { background:linear-gradient(0deg,#050505e6,transparent 75%),linear-gradient(90deg,#05050555,transparent); }.center-shade { background:radial-gradient(ellipse,#05050544,transparent 80%),linear-gradient(0deg,#050505d9,transparent 80%); }
   .shot { padding:105px 25px 115px; justify-content:center; }.shot-lead { font-size:9px; letter-spacing:.6px; margin-bottom:25px; max-width:30ch; }.shot h1,.shot h2 { font-size:clamp(54px,11vw,76px); max-width:100%; }.shot-line { font-size:12px; max-width:28ch; margin-top:25px; }.shot.opening { justify-content:flex-end; padding-bottom:145px; }.shot.opening h1 { font-size:16vw; }.shot.opening .shot-lead { max-width:100%; }.shot.opening .shot-line { max-width:24ch; }.begin-scroll { margin-top:30px; font-size:10px; }.begin-scroll>span { width:30px; height:38px; }.touch-note { display:none; }
-  .shot.center h2 { font-size:clamp(38px,9vw,64px); }.shot.center .shot-line { max-width:29ch; }.shot.center .shot-lead { max-width:30ch; }.shot.god { justify-content:flex-end; padding:100px 25px 112px; }.shot.god .shot-lead { margin-bottom:16px; font-size:8px; letter-spacing:1.4px; }.shot.god h2 { max-width:100%; font-size:18vw; line-height:.88; }.shot.god h2 em { font-size:.43em; margin-top:13px; max-width:12em; line-height:1.05; }.shot.god .shot-line { font-size:11px; line-height:1.6; max-width:29ch; margin-top:18px; }.shot-craft { margin-top:20px; padding-top:10px; font-size:9px; max-width:100%; }.shot.makers h2 { font-size:24px; }.shot.makers h2 em { font-size:15vw; display:block; line-height:1; }.shot.belief h2,.shot.invitation h2 { font-size:13vw; }.join-scene { font-size:11px; padding:12px 18px; gap:35px; margin-top:27px; }
+  .shot.center h2 { font-size:clamp(38px,9vw,64px); }.shot.center .shot-line { max-width:29ch; }.shot.center .shot-lead { max-width:30ch; }.shot.craft { justify-content:flex-end; padding:100px 25px 112px; }.shot.craft .shot-lead { margin-bottom:16px; font-size:8px; letter-spacing:1.4px; }.shot.craft h2 { max-width:100%; font-size:18vw; line-height:.88; }.shot.craft h2 em { font-size:.43em; margin-top:13px; max-width:12em; line-height:1.05; }.shot.craft .shot-line { font-size:11px; line-height:1.6; max-width:29ch; margin-top:18px; }.shot-craft { margin-top:20px; padding-top:10px; font-size:9px; max-width:100%; }.shot.makers h2 { font-size:24px; }.shot.makers h2 em { font-size:15vw; display:block; line-height:1; }.shot.belief h2,.shot.invitation h2 { font-size:13vw; }.join-scene { font-size:11px; padding:12px 18px; gap:35px; margin-top:27px; }
   .film-controls { left:24px; right:24px; bottom:20px; gap:10px; flex-wrap:wrap; }.film-controls:before { inset:-25px -30px -30px; }.current-scene { min-width:108px; font-size:9px; gap:8px; }.film-track { height:1px; position:absolute; left:0; right:0; top:-8px; }.playback-controls { margin-left:auto; gap:16px; }.play-button,.sound-button { font-size:9px; gap:7px; }.play-button>span:first-child { font-size:17px; }.motion-button { font-size:13px; }.scene-menu { bottom:50px; max-height:65svh; }.sound-bars { gap:2px; }
 
   .after-film { grid-template-columns:1fr; padding:90px 24px; gap:40px; }.after-image { height:360px; }.after-copy h2 { font-size:45px; margin:25px 0; }.after-copy p { font-size:13px; }.after-copy .whisper { font-size:9px; }.after-copy .underlined { font-size:11px; }.finale { padding:60px 24px; }.finale>.whisper { font-size:9px; }.finale h2 { font-size:19vw; margin-top:40px; }.finale h2>button { padding-bottom:35px; }.finale-arrow { font-size:.7em; bottom:45px; }.finale-bottom { flex-direction:column; align-items:flex-start; gap:25px; margin-top:25px; }.finale-bottom p { font-size:12px; }.finale-bottom a { font-size:17px; }.credits { padding:25px 24px 120px; gap:15px; flex-wrap:wrap; font-size:8px; }.credits button { font-size:10px; }
   .project-dialog { padding:35px 24px; }.project-dialog h2 { font-size:54px; }.form-row { grid-template-columns:1fr; gap:22px; }.project-dialog form { gap:20px; }
 }
-@media(max-width:360px) { .play-button>span:last-child { display:none; }.playback-controls { gap:13px; }.shot.god .shot-line { font-size:10px; }.shot-craft { font-size:8px; }.shot.god { padding-bottom:102px; } }
-@media(max-height:650px) and (min-width:701px) { .shot h1,.shot h2 { font-size:13vh; }.shot.god h2 { font-size:18vh; }.shot-lead { margin-bottom:20px; }.shot-line { margin-top:22px; }.shot-craft { margin-top:20px; }.begin-scroll { margin-top:25px; } }
+@media(max-width:360px) { .play-button>span:last-child { display:none; }.playback-controls { gap:13px; }.shot.craft .shot-line { font-size:10px; }.shot-craft { font-size:8px; }.shot.craft { padding-bottom:102px; } }
+@media(max-height:650px) and (min-width:701px) { .shot h1,.shot h2 { font-size:13vh; }.shot.craft h2 { font-size:18vh; }.shot-lead { margin-bottom:20px; }.shot-line { margin-top:22px; }.shot-craft { margin-top:20px; }.begin-scroll { margin-top:25px; } }
 html[data-motion=off] *,html[data-motion=off] *:before,html[data-motion=off] *:after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
 @media(prefers-reduced-motion:reduce) { *,*:before,*:after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
 
@@ -125,9 +125,9 @@ html[data-motion=off] *,html[data-motion=off] *:before,html[data-motion=off] *:a
 
 
 
-  .shot.god h2 { font-size:16vw; }
-  .shot.god .shot-lead { margin-bottom:13px; }
-  .shot.god .shot-line { margin-top:14px; }
+  .shot.craft h2 { font-size:16vw; }
+  .shot.craft .shot-lead { margin-bottom:13px; }
+  .shot.craft .shot-line { margin-top:14px; }
   .shot-craft { margin-top:14px; }
 }
 
@@ -154,3 +154,6 @@ html[data-motion=off] *,html[data-motion=off] *:before,html[data-motion=off] *:a
   .services { grid-template-columns:1fr; padding:75px 24px 90px; gap:45px; }.services-intro h2 { font-size:40px; }.services-intro p { font-size:12px; }.service-item { padding:25px 0; }.service-name { font-size:26px; }
 }
 @media(max-width:360px) { .film-header { gap:10px; }.wordmark { font-size:19px; }.services-link,.header-cta { font-size:9px; }.header-cta { gap:6px; }.playback-controls { gap:11px; }.services-intro h2 { font-size:34px; } }
+
+/* Keep the studio name intact as the story resolves into the brand. */
+.shot.makers h2 em { display:block; white-space:nowrap; }

@@ -83,33 +83,33 @@ export default function World({ state, onReady }: Props) {
     }
     scene.add(relic);
 
-    // Five gifts, each with its own silhouette and movement.
-    const gods: THREE.Group[] = [];
-    for (let i = 0; i < 5; i++) { const group = new THREE.Group(); scene.add(group); gods.push(group); }
-    const tech = new THREE.Mesh(sculpt(new THREE.IcosahedronGeometry(1.02, 1), 0.12), silver); gods[0].add(tech);
-    for (let i = 0; i < 3; i++) { const hoop = new THREE.Mesh(new THREE.TorusGeometry(1.35 + i * 0.11, 0.016, 8, 120), filament); hoop.rotation.set(i * 0.8, i * 0.9, i * 0.5); gods[0].add(hoop); }
-    for (let i = 0; i < 7; i++) { const wave = new THREE.Mesh(sculpt(new THREE.TorusGeometry(0.45 + i * 0.13, 0.035 + i * 0.003, 12, 140), 0.01), silver); wave.position.z = (i - 3) * 0.14; gods[1].add(wave); }
+    // Five capabilities, each with its own silhouette and movement.
+    const artifacts: THREE.Group[] = [];
+    for (let i = 0; i < 5; i++) { const group = new THREE.Group(); scene.add(group); artifacts.push(group); }
+    const tech = new THREE.Mesh(sculpt(new THREE.IcosahedronGeometry(1.02, 1), 0.12), silver); artifacts[0].add(tech);
+    for (let i = 0; i < 3; i++) { const hoop = new THREE.Mesh(new THREE.TorusGeometry(1.35 + i * 0.11, 0.016, 8, 120), filament); hoop.rotation.set(i * 0.8, i * 0.9, i * 0.5); artifacts[0].add(hoop); }
+    for (let i = 0; i < 7; i++) { const wave = new THREE.Mesh(sculpt(new THREE.TorusGeometry(0.45 + i * 0.13, 0.035 + i * 0.003, 12, 140), 0.01), silver); wave.position.z = (i - 3) * 0.14; artifacts[1].add(wave); }
     // Design: a suspended interface, assembled from planes with real depth.
     for (let i = 0; i < 5; i++) {
       const panel = new THREE.Mesh(new THREE.BoxGeometry(1.65, i === 0 ? 1.95 : 0.22, 0.075), i === 0 ? dark : pearl);
       panel.position.set(i === 0 ? 0 : 0.13, i === 0 ? 0 : 0.87 - i * 0.36, i === 0 ? -0.3 : 0.08 + i * 0.12);
-      panel.rotation.y = -0.2; gods[2].add(panel);
+      panel.rotation.y = -0.2; artifacts[2].add(panel);
     }
     // Engineering: connected modules form a working structure.
     for (let i = 0; i < 8; i++) {
       const x = (i & 1 ? 1 : -1) * 0.64, y = (i & 2 ? 1 : -1) * 0.64, z = (i & 4 ? 1 : -1) * 0.64;
       const node = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), silver);
-      node.position.set(x, y, z); gods[3].add(node);
+      node.position.set(x, y, z); artifacts[3].add(node);
       for (let axis = 0; axis < 3; axis++) {
         if (i & (1 << axis)) continue;
         const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.28, 10), filament);
         beam.position.set(axis === 0 ? 0 : x, axis === 1 ? 0 : y, axis === 2 ? 0 : z);
         if (axis === 0) beam.rotation.z = Math.PI / 2;
         if (axis === 2) beam.rotation.x = Math.PI / 2;
-        gods[3].add(beam);
+        artifacts[3].add(beam);
       }
     }
-    for (let i = 0; i < 7; i++) { const y = (i - 3) * 0.28; const disc = new THREE.Mesh(new THREE.CylinderGeometry(Math.sqrt(1.25 - y * y), Math.sqrt(1.25 - y * y), 0.2, 80), i % 2 ? dark : silver); disc.position.y = y; gods[4].add(disc); }
+    for (let i = 0; i < 7; i++) { const y = (i - 3) * 0.28; const disc = new THREE.Mesh(new THREE.CylinderGeometry(Math.sqrt(1.25 - y * y), Math.sqrt(1.25 - y * y), 0.2, 80), i % 2 ? dark : silver); disc.position.y = y; artifacts[4].add(disc); }
 
     // Instanced shards travel through real depth during the fall and the handover.
     const shards = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(0.07, 0), silver, 150);
@@ -149,60 +149,60 @@ export default function World({ state, onReady }: Props) {
       if (s.pulse !== previousPulse) { previousPulse = s.pulse; pulse = 1; }
       pulse *= Math.exp(-dt * 2.8);
       const px = s.motion ? s.pointerX : 0, py = s.motion ? s.pointerY : 0;
-      const godWindow = smooth((p - 1.75) * 4) * (1 - smooth((p - 6.82) * 5));
-      const pantheon = smooth((p - 0.8) * 3) * (1 - smooth((p - 1.8) * 5));
+      const craftWindow = smooth((p - 1.75) * 4) * (1 - smooth((p - 6.82) * 5));
+      const possibilities = smooth((p - 0.8) * 3) * (1 - smooth((p - 1.8) * 5));
       const fall = smooth((p - 6.85) * 2.5) * (1 - smooth((p - 8.4) * 2));
-      const gift = smooth((p - 7.9) * 2) * (1 - smooth((p - 9.2) * 2));
+      const connection = smooth((p - 7.9) * 2) * (1 - smooth((p - 9.2) * 2));
       const makers = smooth((p - 8.8) * 2);
       const growth = smooth((p - 8.6) * 1.4) * (1 - smooth((p - 9.65) * 2));
-      const targetX = mobile ? 0 : 1.65 * (1 - pantheon) * (1 - makers);
-      const targetY = mobile ? (p < 1 ? 0.25 : godWindow ? 0.65 : 0) : 0;
+      const targetX = mobile ? 0 : 1.65 * (1 - possibilities) * (1 - makers);
+      const targetY = mobile ? (p < 1 ? 0.25 : craftWindow ? 0.65 : 0) : 0;
       relic.position.set(targetX + px * 0.16, targetY - py * 0.12, 0);
-      const relicScale = (mobile ? 0.95 : 1.23) * (1 - pantheon * 0.77) * (1 - godWindow * 0.99) * (1 - fall * 0.85) * (1 + growth * 0.75) + pulse * 0.08;
+      const relicScale = (mobile ? 0.95 : 1.23) * (1 - possibilities * 0.77) * (1 - craftWindow * 0.99) * (1 - fall * 0.85) * (1 + growth * 0.75) + pulse * 0.08;
       relic.scale.setScalar(Math.max(0.01, relicScale));
-      relic.visible = godWindow < 0.97;
+      relic.visible = craftWindow < 0.97;
       relic.rotation.set(0.16 + Math.sin(time * 0.16) * 0.17 + py * 0.13, -0.5 + time * 0.075 + p * 0.35 + px * 0.2, -0.28 + Math.sin(time * 0.1) * 0.12);
       ring.rotation.z = Math.sin(time * 0.1) * 0.035;
       ridge.rotation.z = -time * 0.03;
-      gods.forEach((god, i) => {
-        const focus = Math.max(0, 1 - Math.abs(p - (i + 2.45)) / 0.75) * godWindow;
+      artifacts.forEach((artifact, i) => {
+        const focus = Math.max(0, 1 - Math.abs(p - (i + 2.45)) / 0.75) * craftWindow;
         const focusEase = smooth(clamp(focus * 2));
         const orbitAngle = i / 5 * Math.PI * 2 + time * 0.06 - Math.PI / 2;
         const orbitX = Math.cos(orbitAngle) * (mobile ? 1.48 : 3.2), orbitY = Math.sin(orbitAngle) * (mobile ? 1.8 : 1.9);
-        const orbitScale = pantheon * (mobile ? 0.38 : 0.5);
+        const orbitScale = possibilities * (mobile ? 0.38 : 0.5);
         const actualFocus = smooth((p - (i + 1.85)) * 5) * (1 - smooth((p - (i + 2.85)) * 5));
-        god.position.set(THREE.MathUtils.lerp(orbitX, mobile ? 0 : 1.85, actualFocus), THREE.MathUtils.lerp(orbitY, mobile ? 1.35 : 0, actualFocus), -0.6 + actualFocus * 0.6);
+        artifact.position.set(THREE.MathUtils.lerp(orbitX, mobile ? 0 : 1.85, actualFocus), THREE.MathUtils.lerp(orbitY, mobile ? 1.35 : 0, actualFocus), -0.6 + actualFocus * 0.6);
         const scale = orbitScale + actualFocus * (mobile ? (height < 740 ? 0.85 : 1.03) : 1.67) + focusEase * 0.005;
-        god.scale.setScalar(Math.max(0.001, scale)); god.visible = scale > 0.015;
-        god.rotation.set(Math.sin(time * 0.14 + i) * 0.22 + py * 0.12, (i === 2 ? 0.2 + Math.sin(time * 0.14) * 0.4 : time * (i === 4 ? 0.14 : 0.09) + i * 0.2) + px * 0.2, Math.sin(time * 0.1 + i) * 0.18);
-        if (i === 1) god.children.forEach((child, j) => { child.rotation.x = Math.sin(time * 0.75 - j * 0.3) * 0.28; child.scale.setScalar(1 + Math.sin(time * 1.8 - j * 0.45) * 0.04); });
-        if (i === 4) god.children.forEach((child, j) => { child.position.x = Math.sin(time * 0.55 + j * 0.6) * 0.16; });
+        artifact.scale.setScalar(Math.max(0.001, scale)); artifact.visible = scale > 0.015;
+        artifact.rotation.set(Math.sin(time * 0.14 + i) * 0.22 + py * 0.12, (i === 2 ? 0.2 + Math.sin(time * 0.14) * 0.4 : time * (i === 4 ? 0.14 : 0.09) + i * 0.2) + px * 0.2, Math.sin(time * 0.1 + i) * 0.18);
+        if (i === 1) artifact.children.forEach((child, j) => { child.rotation.x = Math.sin(time * 0.75 - j * 0.3) * 0.28; child.scale.setScalar(1 + Math.sin(time * 1.8 - j * 0.45) * 0.04); });
+        if (i === 4) artifact.children.forEach((child, j) => { child.position.x = Math.sin(time * 0.55 + j * 0.6) * 0.16; });
       });
-      shards.visible = fall > 0.01 || gift > 0.01;
+      shards.visible = fall > 0.01 || connection > 0.01;
       if (shards.visible) {
-        const spread = 1 + fall * 4.8 - gift * 2;
+        const spread = 1 + fall * 4.8 - connection * 2;
         shardSeeds.forEach((seed, i) => {
           dummy.position.set(Math.cos(seed.a + time * 0.1) * seed.r * spread, Math.sin(seed.a + time * 0.1) * seed.r * spread, seed.z * spread + Math.sin(time * 0.1 + i) * fall * 4);
           dummy.rotation.set(time * 0.3 + i, time * 0.16 + i, i);
-          dummy.scale.setScalar(seed.size * (fall + gift * 0.5)); dummy.updateMatrix(); shards.setMatrixAt(i, dummy.matrix);
+          dummy.scale.setScalar(seed.size * (fall + connection * 0.5)); dummy.updateMatrix(); shards.setMatrixAt(i, dummy.matrix);
         }); shards.instanceMatrix.needsUpdate = true;
       }
-      halo.visible = gift > 0.01;
-      halo.scale.setScalar(0.5 + gift * 3 + pulse);
-      heart.intensity = gift * 38;
+      halo.visible = connection > 0.01;
+      halo.scale.setScalar(0.5 + connection * 3 + pulse);
+      heart.intensity = connection * 38;
       const behind = makers ? 1 : 0;
       camera.position.x = px * 0.23 + Math.sin(growth * Math.PI) * 0.28;
       camera.position.y = -py * 0.15;
-      camera.position.z = (mobile ? 9.8 : 8.5) - gift * 0.55 - growth * 5.3 + behind * 0.3;
+      camera.position.z = (mobile ? 9.8 : 8.5) - connection * 0.55 - growth * 5.3 + behind * 0.3;
       camera.lookAt(0, 0, 0);
       camera.rotation.z = -fall * 0.045;
       dust.rotation.y = time * 0.01 + p * 0.05;
       dust.position.z = (p * 1.8) % 6;
       dustMaterial.opacity = 0.38 + fall * 0.42;
-      key.intensity = 2.6 - fall * 2 + gift * 1.5;
+      key.intensity = 2.6 - fall * 2 + connection * 1.5;
       fill.intensity = 12 - fall * 10;
-      bloom.enabled = gift > 0.02;
-      bloom.strength = 0.12 + gift * 0.4;
+      bloom.enabled = connection > 0.02;
+      bloom.strength = 0.12 + connection * 0.4;
       composer.render();
       if (first) { first = false; ready.current(); }
       // Reduced-motion draws only when the scene or pointer-independent state changes.
