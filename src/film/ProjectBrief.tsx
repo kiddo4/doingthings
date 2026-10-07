@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import Icon from './Icon';
 const EMAIL = 'smith@doingthings.xyz';
 export default function ProjectBrief({ open, onClose }: { open: boolean; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -23,9 +24,9 @@ export default function ProjectBrief({ open, onClose }: { open: boolean; onClose
       <div className="form-row"><label>Your name<input name="name" autoComplete="name" required maxLength={100} placeholder="What should we call you?" /></label><label>Your email<input name="email" type="email" autoComplete="email" required maxLength={200} placeholder="you@somewhere.com" /></label></div>
       <label>The idea<textarea name="idea" required minLength={5} maxLength={3000} rows={3} placeholder="A half-formed thought is a perfectly good start." /></label>
       <label>What could we help with?<select name="service"><option>Let’s discover it together</option><option>Research & strategy</option><option>Ideation & prototyping</option><option>Product design (UX/UI)</option><option>Software development</option><option>AI-powered products</option><option>AI agents & automation</option><option>End-to-end product build</option></select></label>
-      <button type="submit" className="brief-submit">write the first line <span aria-hidden="true">↗</span></button>
+      <button type="submit" className="brief-submit">write the first line <span aria-hidden="true"><Icon name="arrow" /></span></button>
       <p className="form-note">We’ll prepare an email for you to review and send.</p>
     </form>
-    {ready && <div className="brief-ready" role="status"><p>Your first hello is ready.</p><span>Open it in your email app. Make it yours. Send it when you’re ready.</span><a className="brief-submit" href={href}>open your email draft <span aria-hidden="true">↗</span></a><button className="underlined" onClick={() => setReady(false)}>edit the idea</button><a className="form-note" href={`mailto:${EMAIL}`}>Or write directly to {EMAIL}</a></div>}
+    {ready && <div className="brief-ready" role="status"><p>Your first hello is ready.</p><span>Open it in your email app. Make it yours. Send it when you’re ready.</span><a className="brief-submit" href={href}>open your email draft <span aria-hidden="true"><Icon name="arrow" /></span></a><button className="underlined" onClick={() => setReady(false)}>edit the idea</button><a className="form-note" href={`mailto:${EMAIL}`}>Or write directly to {EMAIL}</a></div>}
   </dialog>;
 }

@@ -11,7 +11,10 @@ export class FilmScore {
   private beat = 0;
   private lastScene = -1;
   private generation = 0;
-  get enabled() { return this.active; }
+  private onPlaybackChange: (running: boolean) => void;
+  constructor(onPlaybackChange: (running: boolean) => void = () => {}) { this.onPlaybackChange = onPlaybackChange; }
+  get enabled() { return this.active && this.ctx?.state === 'running'; }
+  private publish() { this.onPlaybackChange(this.enabled); }
 
   async enable() {
     const generation = ++this.generation;
@@ -22,11 +25,13 @@ export class FilmScore {
     this.active = true;
     this.master!.gain.setTargetAtTime(0.48, this.ctx!.currentTime, 0.8);
     if (!this.timer) this.timer = setInterval(() => this.tick(), 780);
+    this.publish();
     return true;
   }
 
   private create() {
     const ctx = new AudioContext(); this.ctx = ctx;
+    ctx.onstatechange = () => this.publish();
     const master = ctx.createGain(); master.gain.value = 0; this.master = master;
     const compressor = ctx.createDynamicsCompressor();
     compressor.threshold.value = -16; compressor.ratio.value = 5;
@@ -110,8 +115,8 @@ export class FilmScore {
     source.start(); source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); pan.disconnect(); };
   }
 
-  mute() { this.generation++; this.active = false; if (this.ctx && this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.12); clearInterval(this.timer); this.timer = undefined; }
-  suspend() { if (this.ctx) void this.ctx.suspend(); }
-  resume() { if (this.ctx && this.active) void this.ctx.resume(); }
-  dispose() { this.mute(); this.voices.forEach(voice => { try { voice.stop(); } catch { /* already stopped */ } }); if (this.ctx) void this.ctx.close(); this.ctx = null; }
+  mute() { this.generation++; this.active = false; if (this.ctx && this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.12); clearInterval(this.timer); this.timer = undefined; this.publish(); }
+  suspend() { if (this.ctx) void this.ctx.suspend().catch(() => this.publish()); }
+  resume() { if (this.ctx && this.active) void this.ctx.resume().catch(() => this.publish()); }
+  dispose() { this.onPlaybackChange = () => {}; if (this.ctx) this.ctx.onstatechange = null; this.mute(); this.voices.forEach(voice => { try { voice.stop(); } catch { /* already stopped */ } }); if (this.ctx) void this.ctx.close(); this.ctx = null; }
 }

@@ -11,6 +11,7 @@ npm ci
 npm run dev
 npm run build
 npm run lint
+node --test tests/score.test.mjs
 ```
 
 `dist/` is the static production output. No live deployment has been performed.
@@ -33,7 +34,8 @@ npm run lint
 The story opens immediately and plays automatically in about 85 seconds. Research,
 ideation, design, engineering, and AI connect the story to the studio’s services. A persistent services link and project action let visitors
 take a direct route. Sound attempts autoplay and retries on the first click, tap, or
-key press when the browser requires interaction. Explicit mute disables automatic
+key press when the browser requires interaction. Native touch-end and click events
+cover mobile gesture handling, including a cancelled pointer during scrolling. Explicit mute disables automatic
 retries for that visit. Playback follows natural scrolling; wheel, touch, and
 navigation keys stop autoplay. A scene menu allows direct navigation without chapter numbering.
 Audio is suspended and autoplay stops when the page is hidden. The 3D renderer stops
@@ -50,3 +52,10 @@ Contact remains `smith@doingthings.xyz`. KidoBuild projects are intentionally de
 
 Fonts load from Google Fonts with local system fallbacks. No analytics provider is
 installed. Retention and conversion improvements have not been measured.
+
+Arrow and playback controls use inline SVG so their appearance does not depend on
+mobile fonts or emoji substitution. Sound state tracks the AudioContext, including
+interruptions, and touch gestures on controls do not reverse the pause action.
+The audio regression tests use a mocked context; physical iOS/Android autoplay
+behavior remains governed by each browser. Audible playback without interaction
+cannot be guaranteed on mobile.

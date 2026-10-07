@@ -48,7 +48,7 @@ stops when hidden or outside the viewport, and GPU resources are disposed.
 
 The original Web Audio score uses synthesized notes, a harmonic bed, reverb, and
 chapter transitions. The application attempts audio immediately. Browser-blocked
-audio retries on pointer-up or key input, without a modal. The control shows sound
+audio retries on pointer-up, touch-end, click, or key input, without a modal. The control shows sound
 on only after the AudioContext is running. Explicit mute cancels pending enable
 attempts and stops subsequent automatic retries. Browser autoplay policy cannot be
 overridden by site code.
@@ -64,3 +64,15 @@ Build and lint checks plus browser review cover direct entry, automatic progress
 gesture-enabled audio, explicit mute persistence, mobile layout, services navigation,
 updated inquiry options, scene navigation, and motion controls. Audio activation is
 verified through playback state; the score has not been independently auditioned.
+
+## Mobile playback and controls
+
+Arrow and transport icons are inline SVG, preserving their shapes across desktop
+and mobile system fonts. Touching a control no longer triggers the scroll-interrupt
+handler before the control's own action. Audio state observes context interruptions,
+and a later gesture can resume requested audio. Explicit mute stays respected.
+
+Four mocked audio regression tests cover allowed autoplay, blocked playback plus a
+gesture retry and interruption, cancellation by mute, and disposal during a pending
+resume. Browser review checks narrow layouts, SVG presence, pause, first-interaction
+sound activation, and mute persistence. This is not a physical-device audio test.

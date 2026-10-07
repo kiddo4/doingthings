@@ -3,6 +3,7 @@ import { FilmScore } from './film/score';
 import { clamp, smooth, story, services, STORY_END, type FilmState } from './film/story';
 import ProjectBrief from './film/ProjectBrief';
 import WorldBoundary from './film/WorldBoundary';
+import Icon from './film/Icon';
 import './App.css';
 const World = lazy(() => import('./film/World'));
 
@@ -25,7 +26,7 @@ export default function App() {
   const onReady = useCallback(() => setReady(true), []);
 
   useEffect(() => {
-    const soundtrack = new FilmScore();
+    const soundtrack = new FilmScore(setSound);
     score.current = soundtrack;
     let live = true;
     const start = () => {
@@ -39,10 +40,11 @@ export default function App() {
       start();
     };
     start();
-    window.addEventListener('pointerup', gesture);
-    window.addEventListener('keydown', gesture);
+    // Touch scrolling can cancel pointerup; touchend covers mobile WebKit too.
+    const gestures = ['pointerup', 'touchend', 'click', 'keydown'] as const;
+    gestures.forEach(event => window.addEventListener(event, gesture, { passive: true }));
     return () => {
-      live = false; window.removeEventListener('pointerup', gesture); window.removeEventListener('keydown', gesture);
+      live = false; gestures.forEach(event => window.removeEventListener(event, gesture));
       soundtrack.dispose(); score.current = null;
     };
   }, []);
@@ -95,15 +97,19 @@ export default function App() {
       frame = requestAnimationFrame(step);
     };
     const interrupt = () => setPlaying(false);
+    const touch = (event: TouchEvent) => {
+      // Let controls handle their own tap; pausing here would reverse a pause tap.
+      if (!(event.target instanceof Element) || !event.target.closest('button,a,input,select,textarea,dialog')) interrupt();
+    };
     const key = (event: KeyboardEvent) => { if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' ', 'Tab'].includes(event.key)) interrupt(); };
-    window.addEventListener('wheel', interrupt, { passive: true }); window.addEventListener('touchstart', interrupt, { passive: true }); window.addEventListener('keydown', key);
+    window.addEventListener('wheel', interrupt, { passive: true }); window.addEventListener('touchstart', touch, { passive: true }); window.addEventListener('keydown', key);
     if (ready) frame = requestAnimationFrame(step);
-    return () => { cancelAnimationFrame(frame); window.removeEventListener('wheel', interrupt); window.removeEventListener('touchstart', interrupt); window.removeEventListener('keydown', key); };
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('wheel', interrupt); window.removeEventListener('touchstart', touch); window.removeEventListener('keydown', key); };
   }, [playing, ready, motion, brief, menu]);
 
   const toggleSound = async (enable = !sound) => {
-    autoSound.current = false;
-    if (!score.current) score.current = new FilmScore();
+    autoSound.current = enable;
+    if (!score.current) score.current = new FilmScore(setSound);
     if (enable) {
       try { const enabled = await score.current.enable(); if (enabled) { score.current.scene(sceneIndex); setSound(true); setSoundError(false); } }
       catch { setSound(false); setSoundError(true); }
@@ -138,7 +144,7 @@ export default function App() {
     <header className="film-header">
       <button className="wordmark" onClick={() => go(0)} aria-label="doingthings, back to the beginning">doing<span>things</span><i /></button>
       <span className="header-title">software product studio</span><a className="services-link" href="#services" onClick={() => setPlaying(false)}>what we do</a>
-      <button className="header-cta" onClick={openBrief}>start a project <span aria-hidden="true">↗</span></button>
+      <button className="header-cta" onClick={openBrief}>start a project <span aria-hidden="true"><Icon name="arrow" /></span></button>
     </header>
     <main>
       <section className="film-scroll" ref={film} id="top" style={{ height: `${(story.length + 1) * 100}svh` }} aria-label="The doingthings film">
@@ -163,8 +169,8 @@ export default function App() {
                 {index === 0 ? <h1>{scene.title}<br /><em>{scene.italic}</em></h1> : <h2>{scene.title}<br /><em>{scene.italic}</em></h2>}
                 <p className="shot-line">{scene.line}</p>
                 {'craft' in scene && <p className="shot-craft">{scene.craft}</p>}
-                {index === 0 && <button className="begin-scroll" onClick={() => go(1)}><span aria-hidden="true">↓</span>see where it could go</button>}
-                {index === story.length - 1 && <button className="join-scene" onClick={openBrief}>let’s make it real <span aria-hidden="true">↗</span></button>}
+                {index === 0 && <button className="begin-scroll" onClick={() => go(1)}><span aria-hidden="true"><Icon name="down" /></span>see where it could go</button>}
+                {index === story.length - 1 && <button className="join-scene" onClick={openBrief}>let’s make it real <span aria-hidden="true"><Icon name="arrow" /></span></button>}
               </article>;
             })}
           </div>
@@ -173,22 +179,22 @@ export default function App() {
       </section>
       <section className="after-film" id="after-film">
         <div className="after-image"><img src="/art/together.webp" alt="Two hands passing a silver thread, a connection made" loading="lazy" /></div>
-        <div className="after-copy"><span className="whisper">a software product studio. from idea to impact.</span><h2>You bring the what-if.<br /><em>We make it work.</em></h2><p>We’re doingthings. We help founders and teams turn ambitious ideas into software, AI-powered products, and useful agents.</p><p>From understanding the problem to designing the experience, building the product, and connecting the tools behind it. One team, thinking and building with you.</p><button className="underlined" onClick={openBrief}>bring us your what-if <span aria-hidden="true">↗</span></button></div>
+        <div className="after-copy"><span className="whisper">a software product studio. from idea to impact.</span><h2>You bring the what-if.<br /><em>We make it work.</em></h2><p>We’re doingthings. We help founders and teams turn ambitious ideas into software, AI-powered products, and useful agents.</p><p>From understanding the problem to designing the experience, building the product, and connecting the tools behind it. One team, thinking and building with you.</p><button className="underlined" onClick={openBrief}>bring us your what-if <span aria-hidden="true"><Icon name="arrow" /></span></button></div>
       </section>
       <section className="services" id="services" aria-labelledby="services-title">
         <div className="services-intro"><span className="whisper">what we can do together</span><h2 id="services-title">A thought. A prototype.<br /><em>A product in the world.</em></h2><p>Come with a question or a brief. Start with one part, or build the whole thing with us.</p></div>
-        <div className="service-list">{services.map(service => <button key={service.name} onClick={openBrief} className="service-item"><span className="service-name">{service.name}<span aria-hidden="true">↗</span></span><span className="service-detail">{service.detail}</span><span className="service-deliverables">{service.deliverables}</span></button>)}</div>
+        <div className="service-list">{services.map(service => <button key={service.name} onClick={openBrief} className="service-item"><span className="service-name">{service.name}<span aria-hidden="true"><Icon name="arrow" /></span></span><span className="service-detail">{service.detail}</span><span className="service-deliverables">{service.deliverables}</span></button>)}</div>
       </section>
-      <section className="finale" aria-labelledby="finale-title"><span className="whisper">one day can start here.</span><h2 id="finale-title"><button onClick={openBrief}>Write the<br /><em>next scene.</em><span className="finale-arrow" aria-hidden="true">↗</span></button></h2><div className="finale-bottom"><p>No perfect brief needed.<br />Just something you believe in.</p><a href="mailto:smith@doingthings.xyz">smith@doingthings.xyz ↗</a></div></section>
+      <section className="finale" aria-labelledby="finale-title"><span className="whisper">one day can start here.</span><h2 id="finale-title"><button onClick={openBrief}>Write the<br /><em>next scene.</em><span className="finale-arrow" aria-hidden="true"><Icon name="arrow" /></span></button></h2><div className="finale-bottom"><p>No perfect brief needed.<br />Just something you believe in.</p><a href="mailto:smith@doingthings.xyz">smith@doingthings.xyz <Icon name="arrow" /></a></div></section>
     </main>
-    <footer className="credits"><button onClick={() => go(0)}>watch again ↺</button><span>doingthings · everywhere it matters</span><span>© {new Date().getFullYear()}</span></footer>
+    <footer className="credits"><button onClick={() => go(0)}>watch again <Icon name="replay" /></button><span>doingthings · everywhere it matters</span><span>© {new Date().getFullYear()}</span></footer>
     <div className="film-controls">
       <div className="chapter-control" onKeyDown={event => { if (event.key === 'Escape') { setMenu(false); event.currentTarget.querySelector('button')?.focus(); } }}><button className="current-scene" aria-expanded={menu} aria-controls="scene-menu" onClick={() => { setMenu(!menu); setPlaying(false); }}><span className="scene-dot" />{story[sceneIndex].name}<span aria-hidden="true">{menu ? '−' : '+'}</span></button>
-        {menu && <nav className="scene-menu" id="scene-menu" aria-label="Jump to a scene"><span className="whisper">find your scene</span>{story.map((scene, index) => <button key={scene.name} aria-current={sceneIndex === index ? 'step' : undefined} onClick={() => go(index)}>{scene.name}<span aria-hidden="true">↗</span></button>)}</nav>}
+        {menu && <nav className="scene-menu" id="scene-menu" aria-label="Jump to a scene"><span className="whisper">find your scene</span>{story.map((scene, index) => <button key={scene.name} aria-current={sceneIndex === index ? 'step' : undefined} onClick={() => go(index)}>{scene.name}<span aria-hidden="true"><Icon name="arrow" /></span></button>)}</nav>}
       </div>
       <div className="film-track" aria-hidden="true"><span style={{ transform: `scaleX(${progress / STORY_END})` }} /></div>
       <span className="scroll-prompt">{playing ? 'the story is playing · scroll to take over' : hasEnded ? 'the next scene is yours' : 'scroll to unfold'}</span>
-      <div className="playback-controls"><button className="play-button" onClick={playFilm} disabled={!motion} aria-label={playing ? 'Pause film' : 'Play film automatically'} aria-pressed={playing}><span aria-hidden="true">{playing ? 'Ⅱ' : '▷'}</span><span>{playing ? 'pause' : 'play film'}</span></button><button className={`sound-button ${sound ? 'sound-on' : ''}`} onClick={() => void toggleSound()} aria-label={sound ? 'Mute sound' : 'Enable sound'} aria-pressed={sound}><span className="sound-bars" aria-hidden="true"><i /><i /><i /><i /></span><span>{sound ? 'sound on' : 'enable sound'}</span></button><button className="motion-button" aria-label={motion ? 'Reduce motion' : 'Enable motion'} aria-pressed={motion} onClick={() => { setMotion(!motion); setPlaying(false); }}>{motion ? '◉' : '○'}</button></div>
+      <div className="playback-controls"><button className="play-button" onClick={playFilm} disabled={!motion} aria-label={playing ? 'Pause film' : 'Play film automatically'} aria-pressed={playing}><span aria-hidden="true"><Icon name={playing ? 'pause' : 'play'} /></span><span>{playing ? 'pause' : 'play film'}</span></button><button className={`sound-button ${sound ? 'sound-on' : ''}`} onClick={() => void toggleSound()} aria-label={sound ? 'Mute sound' : 'Enable sound'} aria-pressed={sound}><span className="sound-bars" aria-hidden="true"><i /><i /><i /><i /></span><span>{sound ? 'sound on' : 'tap for sound'}</span></button><button className="motion-button" aria-label={motion ? 'Reduce motion' : 'Enable motion'} aria-pressed={motion} onClick={() => { setMotion(!motion); setPlaying(false); }}>{motion ? '◉' : '○'}</button></div>
     </div>
     {soundError && <p className="audio-notice" role="status">Sound couldn’t start. You can still explore the film in silence.</p>}
     <ProjectBrief open={brief} onClose={() => setBrief(false)} />
