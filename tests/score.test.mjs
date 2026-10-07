@@ -76,3 +76,31 @@ test('disposed audio never reports playback after a pending resume', async () =>
   assert.equal(await pending, false);
   assert.deepEqual(states, []);
 });
+
+test('first contact rebuilds a blocked landing context inside the interaction', async t => {
+  AudioContextMock.allowed = false;
+  const score = new FilmScore();
+  t.after(() => score.dispose());
+  const landing = score.enable();
+  const blockedContext = AudioContextMock.latest;
+  AudioContextMock.allowed = true;
+  assert.equal(await score.enable(true), true);
+  assert.equal(blockedContext.state, 'closed');
+  assert.notEqual(AudioContextMock.latest, blockedContext);
+  assert.equal(await landing, false);
+  const unlockedContext = AudioContextMock.latest;
+  score.mute();
+  assert.equal(await score.enable(true), true);
+  assert.equal(AudioContextMock.latest, unlockedContext);
+});
+
+test('first contact keeps a context that already autoplayed successfully', async t => {
+  AudioContextMock.allowed = true;
+  const score = new FilmScore();
+  t.after(() => score.dispose());
+  await score.enable();
+  const autoplayContext = AudioContextMock.latest;
+  await score.enable(true);
+  assert.equal(AudioContextMock.latest, autoplayContext);
+  assert.equal(score.enabled, true);
+});

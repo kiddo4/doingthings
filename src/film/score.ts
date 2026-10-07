@@ -11,20 +11,30 @@ export class FilmScore {
   private beat = 0;
   private lastScene = -1;
   private generation = 0;
+  private initializedInGesture = false;
   private onPlaybackChange: (running: boolean) => void;
   constructor(onPlaybackChange: (running: boolean) => void = () => {}) { this.onPlaybackChange = onPlaybackChange; }
   get enabled() { return this.active && this.ctx?.state === 'running'; }
   private publish() { this.onPlaybackChange(this.enabled); }
 
-  async enable() {
+  async enable(fromGesture = false) {
     const generation = ++this.generation;
+    // If the landing attempt was blocked, create the graph inside the first
+    // real interaction. Keep an already-playing or previously unlocked graph.
+    if (fromGesture && !this.initializedInGesture) {
+      this.initializedInGesture = true;
+      if (this.ctx && this.ctx.state !== 'running' && !this.active) this.releaseContext();
+    }
     if (!this.ctx) this.create();
     const ctx = this.ctx!;
     await ctx.resume();
     if (generation !== this.generation || ctx !== this.ctx || ctx.state !== 'running') return false;
     this.active = true;
-    this.master!.gain.setTargetAtTime(0.48, this.ctx!.currentTime, 0.8);
-    if (!this.timer) this.timer = setInterval(() => this.tick(), 780);
+    this.master!.gain.setTargetAtTime(0.48, this.ctx!.currentTime, 0.25);
+    if (!this.timer) {
+      this.tick(); // Make the first note audible without waiting for the sequencer.
+      this.timer = setInterval(() => this.tick(), 780);
+    }
     this.publish();
     return true;
   }
@@ -118,5 +128,14 @@ export class FilmScore {
   mute() { this.generation++; this.active = false; if (this.ctx && this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.12); clearInterval(this.timer); this.timer = undefined; this.publish(); }
   suspend() { if (this.ctx) void this.ctx.suspend().catch(() => this.publish()); }
   resume() { if (this.ctx && this.active) void this.ctx.resume().catch(() => this.publish()); }
-  dispose() { this.onPlaybackChange = () => {}; if (this.ctx) this.ctx.onstatechange = null; this.mute(); this.voices.forEach(voice => { try { voice.stop(); } catch { /* already stopped */ } }); if (this.ctx) void this.ctx.close(); this.ctx = null; }
+  private releaseContext() {
+    this.voices.forEach(voice => { try { voice.stop(); } catch { /* already stopped */ } });
+    this.voices = [];
+    if (this.ctx) {
+      this.ctx.onstatechange = null;
+      void this.ctx.close().catch(() => {});
+    }
+    this.ctx = null; this.master = null; this.reverb = null;
+  }
+  dispose() { this.onPlaybackChange = () => {}; this.mute(); this.releaseContext(); }
 }

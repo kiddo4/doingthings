@@ -33,9 +33,10 @@ node --test tests/score.test.mjs
 
 The story opens immediately and plays automatically in about 85 seconds. Research,
 ideation, design, engineering, and AI connect the story to the studio’s services. A persistent services link and project action let visitors
-take a direct route. Sound attempts autoplay and retries on the first click, tap, or
-key press when the browser requires interaction. Native touch-end and click events
-cover mobile gesture handling, including a cancelled pointer during scrolling. Explicit mute disables automatic
+take a direct route. Sound attempts autoplay and retries on the first press, touch, click, or key press anywhere on the page when
+the browser requires interaction. A blocked landing context is recreated inside
+the first genuine interaction, and the opening note starts immediately. Release
+events remain as a fallback for browser differences. Explicit mute disables automatic
 retries for that visit. Playback follows natural scrolling; wheel, touch, and
 navigation keys stop autoplay. A scene menu allows direct navigation without chapter numbering.
 Audio is suspended and autoplay stops when the page is hidden. The 3D renderer stops

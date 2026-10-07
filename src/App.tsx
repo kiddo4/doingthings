@@ -29,22 +29,23 @@ export default function App() {
     const soundtrack = new FilmScore(setSound);
     score.current = soundtrack;
     let live = true;
-    const start = () => {
+    const start = (fromGesture = false) => {
       if (!autoSound.current || soundtrack.enabled || document.hidden) return;
-      void soundtrack.enable().then(enabled => {
+      void soundtrack.enable(fromGesture).then(enabled => {
         if (live && enabled) { soundtrack.scene(Math.floor(state.current.progress)); setSound(true); setSoundError(false); }
       }).catch(() => { /* A gesture or the sound control can retry browser-blocked audio. */ });
     };
     const gesture = (event: Event) => {
       if ((event.target as HTMLElement).closest?.('.sound-button')) return;
-      start();
+      start(event.isTrusted);
     };
     start();
-    // Touch scrolling can cancel pointerup; touchend covers mobile WebKit too.
-    const gestures = ['pointerup', 'touchend', 'click', 'keydown'] as const;
-    gestures.forEach(event => window.addEventListener(event, gesture, { passive: true }));
+    // Start on contact anywhere, not only after releasing a tap. Keep release
+    // events for browsers that grant activation at the end of a touch.
+    const gestures = ['pointerdown', 'mousedown', 'touchstart', 'pointerup', 'touchend', 'click', 'keydown'] as const;
+    gestures.forEach(event => window.addEventListener(event, gesture, { passive: true, capture: true }));
     return () => {
-      live = false; gestures.forEach(event => window.removeEventListener(event, gesture));
+      live = false; gestures.forEach(event => window.removeEventListener(event, gesture, true));
       soundtrack.dispose(); score.current = null;
     };
   }, []);
@@ -111,7 +112,7 @@ export default function App() {
     autoSound.current = enable;
     if (!score.current) score.current = new FilmScore(setSound);
     if (enable) {
-      try { const enabled = await score.current.enable(); if (enabled) { score.current.scene(sceneIndex); setSound(true); setSoundError(false); } }
+      try { const enabled = await score.current.enable(true); if (enabled) { score.current.scene(sceneIndex); setSound(true); setSoundError(false); } }
       catch { setSound(false); setSoundError(true); }
     } else { score.current.mute(); setSound(false); }
   };

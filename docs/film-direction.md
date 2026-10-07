@@ -48,7 +48,8 @@ stops when hidden or outside the viewport, and GPU resources are disposed.
 
 The original Web Audio score uses synthesized notes, a harmonic bed, reverb, and
 chapter transitions. The application attempts audio immediately. Browser-blocked
-audio retries on pointer-up, touch-end, click, or key input, without a modal. The control shows sound
+audio retries on first contact (pointer-down, mouse-down, touch-start), with
+release, click, and key events as fallbacks, without a modal. The control shows sound
 on only after the AudioContext is running. Explicit mute cancels pending enable
 attempts and stops subsequent automatic retries. Browser autoplay policy cannot be
 overridden by site code.
@@ -72,7 +73,19 @@ and mobile system fonts. Touching a control no longer triggers the scroll-interr
 handler before the control's own action. Audio state observes context interruptions,
 and a later gesture can resume requested audio. Explicit mute stays respected.
 
-Four mocked audio regression tests cover allowed autoplay, blocked playback plus a
+Six mocked audio regression tests cover allowed autoplay, blocked playback plus a
 gesture retry and interruption, cancellation by mute, and disposal during a pending
 resume. Browser review checks narrow layouts, SVG presence, pause, first-interaction
 sound activation, and mute persistence. This is not a physical-device audio test.
+
+## Reference implementation audit
+
+Lusion's public script (https://lusion.co/_astro/hoisted.CUO_IjfL.js) initializes its
+AudioListener from an input-down callback registered on mouse-down and touch-start.
+This does not require a dedicated sound-button click. Our first-contact handlers
+now run in capture phase. If landing autoplay was blocked, the graph is created
+again inside the first genuine interaction; an already running graph is retained.
+The first sequencer note plays immediately instead of waiting 780 ms, with a shorter
+volume fade-in. Muting continues to disable automatic activation. Browser checking
+confirmed that pressing the scene activates sound while automatic playback remains
+on. This is not a claim of zero-interaction playback on every device.
