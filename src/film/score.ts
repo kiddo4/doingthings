@@ -1,4 +1,4 @@
-// An original, generative score. All sound is synthesized locally after a gesture.
+// Original generative audio. Attempt autoplay; retry after a gesture when blocked.
 // Soft felt-like notes, a slowly moving harmonic bed, and spatial transition washes.
 export class FilmScore {
   private ctx: AudioContext | null = null;
@@ -10,13 +10,19 @@ export class FilmScore {
   private chapter = 0;
   private beat = 0;
   private lastScene = -1;
+  private generation = 0;
+  get enabled() { return this.active; }
 
   async enable() {
+    const generation = ++this.generation;
     if (!this.ctx) this.create();
-    await this.ctx!.resume();
+    const ctx = this.ctx!;
+    await ctx.resume();
+    if (generation !== this.generation || ctx !== this.ctx || ctx.state !== 'running') return false;
     this.active = true;
     this.master!.gain.setTargetAtTime(0.48, this.ctx!.currentTime, 0.8);
     if (!this.timer) this.timer = setInterval(() => this.tick(), 780);
+    return true;
   }
 
   private create() {
@@ -104,7 +110,7 @@ export class FilmScore {
     source.start(); source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); pan.disconnect(); };
   }
 
-  mute() { this.active = false; if (this.ctx && this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.12); clearInterval(this.timer); this.timer = undefined; }
+  mute() { this.generation++; this.active = false; if (this.ctx && this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.12); clearInterval(this.timer); this.timer = undefined; }
   suspend() { if (this.ctx) void this.ctx.suspend(); }
   resume() { if (this.ctx && this.active) void this.ctx.resume(); }
   dispose() { this.mute(); this.voices.forEach(voice => { try { voice.stop(); } catch { /* already stopped */ } }); if (this.ctx) void this.ctx.close(); this.ctx = null; }

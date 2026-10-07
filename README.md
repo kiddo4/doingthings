@@ -1,6 +1,6 @@
 # doingthings — a small myth about making
 
-An interactive short film for a product studio. Twelve scenes carry a fictional
+An interactive short film for a software product studio. Twelve scenes carry a fictional
 story from the gods of making to the next project: an awakening, five gifts, the
 fracture, the handover, doingthings, and the visitor's own next scene.
 
@@ -17,7 +17,7 @@ npm run lint
 
 ## Film architecture
 
-- `src/App.tsx`: entrance, native scroll timeline, screenplay, automatic playback,
+- `src/App.tsx`: direct entry, native scroll timeline, screenplay, automatic playback,
   scene navigation, sound and motion controls, ending, and inquiry state.
 - `src/film/story.ts`: all screenplay text and scene order.
 - `src/film/World.tsx`: real Three.js WebGL geometry, studio reflections, five
@@ -30,9 +30,13 @@ npm run lint
 - `docs/art-direction.md`: original image prompts and earlier research.
 - `docs/film-direction.md`: the updated direction and implementation notes.
 
-The visitor chooses sound or silence before entering. Audio starts only after a
-user gesture. Playback follows natural scrolling; wheel, touch, and navigation keys
-stop autoplay. A scene menu allows direct navigation without chapter numbering.
+The story opens immediately and plays automatically in about 78 seconds. Research,
+ideation, design, engineering, and iteration connect the fictional gifts to the
+studio’s actual services. A persistent services link and project action let visitors
+take a direct route. Sound attempts autoplay and retries on the first click, tap, or
+key press when the browser requires interaction. Explicit mute disables automatic
+retries for that visit. Playback follows natural scrolling; wheel, touch, and
+navigation keys stop autoplay. A scene menu allows direct navigation without chapter numbering.
 Audio is suspended and autoplay stops when the page is hidden. The 3D renderer stops
 when hidden or offscreen, caps pixel density and its render rate, and disposes GPU
 resources on unmount. Reduced-motion users receive static 3D compositions and native

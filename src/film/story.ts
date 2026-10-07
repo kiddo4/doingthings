@@ -1,18 +1,24 @@
 export const story = [
-  { name: 'the beginning', lead: 'Before the screens. Before the noise.', title: 'There was', italic: 'a feeling.', line: 'The urge to make something that matters.', layout: 'opening' },
-  { name: 'the awakening', lead: 'A small myth about making', title: 'Once, the world belonged', italic: 'to the makers.', line: 'Five restless spirits. Five ways of turning nothing into something.', layout: 'center' },
-  { name: 'Techne', lead: 'The gift of technology', title: 'Techne', italic: 'made the impossible, possible.', line: 'Fire became light. Light became thought. And thought could move the world.', craft: 'We build the technology that makes an idea real.', layout: 'god' },
-  { name: 'Melos', lead: 'The gift of music', title: 'Melos', italic: 'gave silence a heartbeat.', line: 'A rhythm to find each other. A feeling that needed no translation.', craft: 'Sound, identity, and experiences you can feel.', layout: 'god' },
-  { name: 'Kallos', lead: 'The gift of beauty', title: 'Kallos', italic: 'taught the world to pause.', line: 'Not everything beautiful asks for attention. Some things simply hold it.', craft: 'Brands and interfaces worth looking at twice.', layout: 'god' },
-  { name: 'Poiesis', lead: 'The gift of art', title: 'Poiesis', italic: 'dreamed beyond the edges.', line: 'Where everyone saw what was, one spirit saw what could be.', craft: 'Art direction, motion, and worlds of possibility.', layout: 'god' },
-  { name: 'Ergon', lead: 'The gift of making', title: 'Ergon', italic: 'put dreams into our hands.', line: 'Because an idea only changes a life when it leaves the imagination.', craft: 'Products, from the first what-if to the real thing.', layout: 'god' },
-  { name: 'the distance', lead: 'Then, somewhere along the way…', title: 'Things got louder.', italic: 'We felt less.', line: 'More screens. More noise. Less of the thing it was all supposed to be for.', layout: 'center fall' },
-  { name: 'the gift', lead: 'But the story wasn’t over.', title: 'The gods left us', italic: 'their fire.', line: 'Not to worship. To do something with.', layout: 'center handover' },
-  { name: 'the makers', lead: 'To the curious. The restless. The beautifully unreasonable.', title: 'And so, we started', italic: 'doingthings.', line: 'Technology. Music. Beauty. Art. Products. One instinct: make people feel something.', layout: 'center makers' },
-  { name: 'the feeling', lead: 'This is what the fire is for.', title: 'doing things', italic: 'that touch lives.', line: 'A product studio for people who believe there’s a better way.', layout: 'center belief' },
-  { name: 'your scene', lead: 'Every story needs its next possibility.', title: 'This part', italic: 'could be yours.', line: 'That idea you can’t stop thinking about? Let’s give it a life.', layout: 'center invitation' },
+  { name: 'the possibility', lead: 'doingthings · a software product studio', title: 'What if became', italic: 'what’s next.', line: 'We research, design, and build software that turns a possibility into something people use.', layout: 'opening', duration: 8500 },
+  { name: 'the first question', lead: 'Every invention begins somewhere.', title: 'Even the gods', italic: 'started with “what if?”', line: 'In our story, they left us five gifts. Together, they could turn an idea into a new reality.', layout: 'center', duration: 6500 },
+  { name: 'research', lead: 'The gift of curiosity · research', title: 'Listen.', italic: 'Find the real question.', line: 'Before building a solution, understand the people who need it.', craft: 'User research · discovery · product strategy', layout: 'god', duration: 6000 },
+  { name: 'ideation', lead: 'The gift of possibility · ideation', title: 'Imagine.', italic: 'See what isn’t here. Yet.', line: 'A problem becomes a possibility. A possibility becomes a direction worth testing.', craft: 'Product concepts · workshops · rapid prototypes', layout: 'god', duration: 6000 },
+  { name: 'product design', lead: 'The gift of clarity · design', title: 'Shape.', italic: 'Make the complex feel simple.', line: 'An idea takes form. Every screen, every interaction, a little closer to second nature.', craft: 'UX & UI design · interaction design · design systems', layout: 'god', duration: 6500 },
+  { name: 'engineering', lead: 'The gift of invention · engineering', title: 'Build.', italic: 'Give possibility a pulse.', line: 'Thought becomes working software. Something you can open, use, and depend on.', craft: 'Web & mobile apps · platforms · software engineering', layout: 'god', duration: 6500 },
+  { name: 'launch & learn', lead: 'The gift of progress · iteration', title: 'Release.', italic: 'Let the real world in.', line: 'A launch is a beginning. We learn from use, improve what matters, and keep moving.', craft: 'MVPs · product launches · ongoing improvement', layout: 'god', duration: 6000 },
+  { name: 'the missing piece', lead: 'But a gift on its own was never enough.', title: 'An idea without a way.', italic: 'A product without a why.', line: 'Separated, even the greatest gifts could leave something unfinished.', layout: 'center fall', duration: 5500 },
+  { name: 'the connection', lead: 'So the gods passed the fire on.', title: 'Not to be admired.', italic: 'To be made useful.', line: 'Curiosity. Imagination. Design. Engineering. Progress. Finally, working as one.', layout: 'center handover', duration: 6500 },
+  { name: 'doingthings', lead: 'That’s where we come in.', title: 'One product team.', italic: 'doingthings.', line: 'From the first question to working software. We connect the thinking, the design, and the build.', layout: 'center makers', duration: 6500 },
+  { name: 'the reason', lead: 'The technology is only the beginning.', title: 'doing things', italic: 'that touch lives.', line: 'A task made easier. A business moving forward. A product someone is glad exists.', layout: 'center belief', duration: 6000 },
+  { name: 'your next chapter', lead: 'Now, about that idea of yours.', title: 'Let’s build', italic: 'what happens next.', line: 'A new product, a better experience, or a challenge you haven’t solved yet. Bring it here.', layout: 'center invitation', duration: 7000 },
+];
+export const services = [
+  { name: 'Research & strategy', detail: 'Understand the people, the problem, and what’s worth building.', deliverables: 'Discovery · user research · product direction' },
+  { name: 'Ideation & prototyping', detail: 'Explore possibilities and test the idea before the full build.', deliverables: 'Concepts · workshops · interactive prototypes' },
+  { name: 'Product design', detail: 'Turn complex journeys into clear, considered experiences.', deliverables: 'UX/UI · interaction design · design systems' },
+  { name: 'Software development', detail: 'Build and launch the product, then keep making it better.', deliverables: 'Web & mobile apps · platforms · MVPs · iteration' },
 ];
 export const STORY_END = story.length - 0.001;
-export type FilmState = { progress: number; pointerX: number; pointerY: number; motion: boolean; entered: boolean; pulse: number };
+export type FilmState = { progress: number; pointerX: number; pointerY: number; motion: boolean; pulse: number };
 export const clamp = (n: number, a = 0, b = 1) => Math.min(b, Math.max(a, n));
 export const smooth = (n: number) => { const t = clamp(n); return t * t * (3 - 2 * t); };

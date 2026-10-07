@@ -89,8 +89,26 @@ export default function World({ state, onReady }: Props) {
     const tech = new THREE.Mesh(sculpt(new THREE.IcosahedronGeometry(1.02, 1), 0.12), silver); gods[0].add(tech);
     for (let i = 0; i < 3; i++) { const hoop = new THREE.Mesh(new THREE.TorusGeometry(1.35 + i * 0.11, 0.016, 8, 120), filament); hoop.rotation.set(i * 0.8, i * 0.9, i * 0.5); gods[0].add(hoop); }
     for (let i = 0; i < 7; i++) { const wave = new THREE.Mesh(sculpt(new THREE.TorusGeometry(0.45 + i * 0.13, 0.035 + i * 0.003, 12, 140), 0.01), silver); wave.position.z = (i - 3) * 0.14; gods[1].add(wave); }
-    for (let i = 0; i < 9; i++) { const petal = new THREE.Mesh(new THREE.SphereGeometry(0.52, 32, 24), pearl); const a = i / 9 * Math.PI * 2; petal.scale.set(0.5, 1.6, 0.24); petal.position.set(Math.sin(a) * 0.52, Math.cos(a) * 0.52, Math.sin(a * 2) * 0.14); petal.rotation.set(0.2, a * 0.25, -a); gods[2].add(petal); }
-    const knot = new THREE.Mesh(sculpt(new THREE.TorusKnotGeometry(0.72, 0.22, 250, 32, 2, 5), 0.085), silver); gods[3].add(knot);
+    // Design: a suspended interface, assembled from planes with real depth.
+    for (let i = 0; i < 5; i++) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(1.65, i === 0 ? 1.95 : 0.22, 0.075), i === 0 ? dark : pearl);
+      panel.position.set(i === 0 ? 0 : 0.13, i === 0 ? 0 : 0.87 - i * 0.36, i === 0 ? -0.3 : 0.08 + i * 0.12);
+      panel.rotation.y = -0.2; gods[2].add(panel);
+    }
+    // Engineering: connected modules form a working structure.
+    for (let i = 0; i < 8; i++) {
+      const x = (i & 1 ? 1 : -1) * 0.64, y = (i & 2 ? 1 : -1) * 0.64, z = (i & 4 ? 1 : -1) * 0.64;
+      const node = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), silver);
+      node.position.set(x, y, z); gods[3].add(node);
+      for (let axis = 0; axis < 3; axis++) {
+        if (i & (1 << axis)) continue;
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.28, 10), filament);
+        beam.position.set(axis === 0 ? 0 : x, axis === 1 ? 0 : y, axis === 2 ? 0 : z);
+        if (axis === 0) beam.rotation.z = Math.PI / 2;
+        if (axis === 2) beam.rotation.x = Math.PI / 2;
+        gods[3].add(beam);
+      }
+    }
     for (let i = 0; i < 7; i++) { const y = (i - 3) * 0.28; const disc = new THREE.Mesh(new THREE.CylinderGeometry(Math.sqrt(1.25 - y * y), Math.sqrt(1.25 - y * y), 0.2, 80), i % 2 ? dark : silver); disc.position.y = y; gods[4].add(disc); }
 
     // Instanced shards travel through real depth during the fall and the handover.

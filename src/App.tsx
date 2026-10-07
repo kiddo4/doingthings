@@ -1,39 +1,56 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { FilmScore } from './film/score';
-import { clamp, smooth, story, STORY_END, type FilmState } from './film/story';
+import { clamp, smooth, story, services, STORY_END, type FilmState } from './film/story';
 import ProjectBrief from './film/ProjectBrief';
 import WorldBoundary from './film/WorldBoundary';
 import './App.css';
 const World = lazy(() => import('./film/World'));
 
 export default function App() {
-  const [entered, setEntered] = useState(false);
   const [ready, setReady] = useState(false);
   const [sound, setSound] = useState(false);
   const [soundError, setSoundError] = useState(false);
   const [motion, setMotion] = useState(() => !matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(() => !matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [progress, setProgress] = useState(0);
   const [menu, setMenu] = useState(false);
   const [brief, setBrief] = useState(false);
   const film = useRef<HTMLElement>(null);
   const screen = useRef<HTMLDivElement>(null);
-  const entrance = useRef<HTMLDialogElement>(null);
+  const autoSound = useRef(true);
   const score = useRef<FilmScore | null>(null);
-  const state = useRef<FilmState>({ progress: 0, pointerX: 0, pointerY: 0, entered: false, motion, pulse: 0 });
+  const state = useRef<FilmState>({ progress: 0, pointerX: 0, pointerY: 0, motion, pulse: 0 });
   const sceneIndex = Math.min(story.length - 1, Math.floor(progress));
   const hasEnded = progress >= STORY_END - 0.04;
   const onReady = useCallback(() => setReady(true), []);
 
   useEffect(() => {
-    entrance.current?.showModal();
-    return () => { score.current?.dispose(); score.current = null; };
+    const soundtrack = new FilmScore();
+    score.current = soundtrack;
+    let live = true;
+    const start = () => {
+      if (!autoSound.current || soundtrack.enabled || document.hidden) return;
+      void soundtrack.enable().then(enabled => {
+        if (live && enabled) { soundtrack.scene(Math.floor(state.current.progress)); setSound(true); setSoundError(false); }
+      }).catch(() => { /* A gesture or the sound control can retry browser-blocked audio. */ });
+    };
+    const gesture = (event: Event) => {
+      if ((event.target as HTMLElement).closest?.('.sound-button')) return;
+      start();
+    };
+    start();
+    window.addEventListener('pointerup', gesture);
+    window.addEventListener('keydown', gesture);
+    return () => {
+      live = false; window.removeEventListener('pointerup', gesture); window.removeEventListener('keydown', gesture);
+      soundtrack.dispose(); score.current = null;
+    };
   }, []);
   useEffect(() => {
     document.documentElement.dataset.motion = motion ? 'on' : 'off';
-    state.current.motion = motion; state.current.entered = entered;
+    state.current.motion = motion;
     window.dispatchEvent(new Event('film-state-change'));
-  }, [motion, entered]);
+  }, [motion]);
   useEffect(() => {
     const media = matchMedia('(prefers-reduced-motion: reduce)');
     const change = () => { setMotion(!media.matches); if (media.matches) setPlaying(false); };
@@ -41,9 +58,9 @@ export default function App() {
     return () => media.removeEventListener('change', change);
   }, []);
   useEffect(() => {
-    document.body.style.overflow = !entered || brief ? 'hidden' : '';
+    document.body.style.overflow = brief ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
-  }, [entered, brief]);
+  }, [brief]);
   useEffect(() => {
     let frame = 0;
     const update = () => {
@@ -65,34 +82,32 @@ export default function App() {
     return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', scroll); window.removeEventListener('resize', scroll); document.removeEventListener('visibilitychange', visibility); };
   }, []);
   useEffect(() => {
-    if (!playing || !entered || !motion || brief) return;
+    if (!playing || !motion || brief || menu) return;
     let frame = 0, previous = 0;
     const step = (now: number) => {
       const elapsed = previous ? Math.min(now - previous, 80) : 0; previous = now;
       const height = screen.current?.clientHeight || innerHeight;
       const p = state.current.progress;
       if (p >= STORY_END - 0.04) { setPlaying(false); return; }
-      // Each scene gets about nine seconds; browser scrolling remains native.
-      window.scrollBy({ top: elapsed * height / 9000, behavior: 'instant' });
+      // Give each beat its own pace while keeping the scroll position native.
+      const duration = story[Math.min(story.length - 1, Math.floor(p))].duration;
+      window.scrollBy({ top: elapsed * height / duration, behavior: 'instant' });
       frame = requestAnimationFrame(step);
     };
     const interrupt = () => setPlaying(false);
-    const key = (event: KeyboardEvent) => { if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) interrupt(); };
+    const key = (event: KeyboardEvent) => { if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' ', 'Tab'].includes(event.key)) interrupt(); };
     window.addEventListener('wheel', interrupt, { passive: true }); window.addEventListener('touchstart', interrupt, { passive: true }); window.addEventListener('keydown', key);
-    frame = requestAnimationFrame(step);
+    if (ready) frame = requestAnimationFrame(step);
     return () => { cancelAnimationFrame(frame); window.removeEventListener('wheel', interrupt); window.removeEventListener('touchstart', interrupt); window.removeEventListener('keydown', key); };
-  }, [playing, entered, motion, brief]);
+  }, [playing, ready, motion, brief, menu]);
 
   const toggleSound = async (enable = !sound) => {
+    autoSound.current = false;
     if (!score.current) score.current = new FilmScore();
     if (enable) {
-      try { await score.current.enable(); score.current.scene(sceneIndex); setSound(true); setSoundError(false); }
+      try { const enabled = await score.current.enable(); if (enabled) { score.current.scene(sceneIndex); setSound(true); setSoundError(false); } }
       catch { setSound(false); setSoundError(true); }
     } else { score.current.mute(); setSound(false); }
-  };
-  const enter = (audio: boolean) => {
-    if (audio) void toggleSound(true);
-    entrance.current?.close(); setEntered(true); window.scrollTo({ top: 0, behavior: 'instant' });
   };
   const go = (index: number) => {
     setPlaying(false); setMenu(false);
@@ -118,12 +133,12 @@ export default function App() {
   const handover = smooth((progress - 7.9) * 2) * (1 - smooth((progress - 9) * 2));
   const still = smooth((progress - 9.95) * 3) * (1 - smooth((progress - 10.85) * 4));
 
-  return <div className={`cinema ${entered ? 'has-entered' : ''}`}>
-    <a className="skip-link" href="#after-film" onClick={() => { setPlaying(false); if (!entered) enter(false); }}>Skip the film</a>
-    <header className="film-header" inert={!entered}>
+  return <div className="cinema">
+    <a className="skip-link" href="#after-film" onClick={() => setPlaying(false)}>Skip the film</a>
+    <header className="film-header">
       <button className="wordmark" onClick={() => go(0)} aria-label="doingthings, back to the beginning">doing<span>things</span><i /></button>
-      <span className="header-title">a story about making people feel.</span>
-      <button className="header-cta" onClick={openBrief}>start your story <span aria-hidden="true">↗</span></button>
+      <span className="header-title">software product studio</span><a className="services-link" href="#services" onClick={() => setPlaying(false)}>what we do</a>
+      <button className="header-cta" onClick={openBrief}>start a project <span aria-hidden="true">↗</span></button>
     </header>
     <main>
       <section className="film-scroll" ref={film} id="top" style={{ height: `${(story.length + 1) * 100}svh` }} aria-label="The doingthings film">
@@ -140,43 +155,42 @@ export default function App() {
           <div className={`cinema-shade ${sceneIndex >= 7 ? 'center-shade' : ''}`} />
           <div className="film-grain" aria-hidden="true" />
           <div className="letterbox top" aria-hidden="true" /><div className="letterbox bottom" aria-hidden="true" />
-          <div className="screenplay" inert={!entered}>
+          <div className="screenplay">
             {story.map((scene, index) => {
               const opacity = sceneOpacity(index);
-              return <article key={scene.name} className={`shot ${scene.layout}`} aria-hidden={opacity < 0.1} inert={opacity < 0.1} style={{ opacity: entered ? opacity : 0, visibility: opacity > 0 ? 'visible' : 'hidden', transform: motion ? `translateY(${(1 - opacity) * 20}px)` : undefined }}>
+              return <article key={scene.name} className={`shot ${scene.layout}`} aria-hidden={opacity < 0.1} inert={opacity < 0.1} style={{ opacity, visibility: opacity > 0 ? 'visible' : 'hidden', transform: motion ? `translateY(${(1 - opacity) * 20}px)` : undefined }}>
                 <p className="shot-lead">{scene.lead}</p>
                 {index === 0 ? <h1>{scene.title}<br /><em>{scene.italic}</em></h1> : <h2>{scene.title}<br /><em>{scene.italic}</em></h2>}
                 <p className="shot-line">{scene.line}</p>
                 {'craft' in scene && <p className="shot-craft">{scene.craft}</p>}
-                {index === 0 && <button className="begin-scroll" onClick={() => go(1)}><span aria-hidden="true">↓</span>follow the feeling</button>}
+                {index === 0 && <button className="begin-scroll" onClick={() => go(1)}><span aria-hidden="true">↓</span>see how an idea becomes real</button>}
                 {index === story.length - 1 && <button className="join-scene" onClick={openBrief}>let’s make it real <span aria-hidden="true">↗</span></button>}
               </article>;
             })}
           </div>
-          <span className="touch-note" aria-hidden="true" style={{ opacity: entered && progress < 0.8 ? 0.6 : 0 }}>move a little. the world moves with you.</span>
+          <span className="touch-note" aria-hidden="true" style={{ opacity: progress < 0.8 ? 0.6 : 0 }}>move a little. the world moves with you.</span>
         </div>
       </section>
-      <section className="after-film" id="after-film" inert={!entered}>
+      <section className="after-film" id="after-film">
         <div className="after-image"><img src="/art/together.webp" alt="Two hands passing a silver thread, a connection made" loading="lazy" /></div>
-        <div className="after-copy"><span className="whisper">the film ends. the possibilities don’t.</span><h2>A little belief.<br /><em>A world of possibility.</em></h2><p>We’re doingthings. A product studio bringing technology, music, beauty, art, and thoughtful products into the same room.</p><p>We research. We imagine. We build.<br />For people who deserve to feel something.</p><button className="underlined" onClick={openBrief}>bring us your what-if <span aria-hidden="true">↗</span></button></div>
+        <div className="after-copy"><span className="whisper">a software product studio. from idea to impact.</span><h2>You bring the what-if.<br /><em>We make it work.</em></h2><p>We’re doingthings. We help founders and teams turn ambitious ideas into software products people can use.</p><p>From understanding the problem to designing the experience and engineering the product. One team, thinking and building with you.</p><button className="underlined" onClick={openBrief}>bring us your what-if <span aria-hidden="true">↗</span></button></div>
       </section>
-      <section className="finale" inert={!entered} aria-labelledby="finale-title"><span className="whisper">starring, perhaps, you.</span><h2 id="finale-title"><button onClick={openBrief}>Write the<br /><em>next scene.</em><span className="finale-arrow" aria-hidden="true">↗</span></button></h2><div className="finale-bottom"><p>No perfect brief needed.<br />Just something you believe in.</p><a href="mailto:smith@doingthings.xyz">smith@doingthings.xyz ↗</a></div></section>
+      <section className="services" id="services" aria-labelledby="services-title">
+        <div className="services-intro"><span className="whisper">what we can do together</span><h2 id="services-title">A thought. A prototype.<br /><em>A product in the world.</em></h2><p>Come with a question or a brief. Start with one part, or build the whole thing with us.</p></div>
+        <div className="service-list">{services.map(service => <button key={service.name} onClick={openBrief} className="service-item"><span className="service-name">{service.name}<span aria-hidden="true">↗</span></span><span className="service-detail">{service.detail}</span><span className="service-deliverables">{service.deliverables}</span></button>)}</div>
+      </section>
+      <section className="finale" aria-labelledby="finale-title"><span className="whisper">starring, perhaps, you.</span><h2 id="finale-title"><button onClick={openBrief}>Write the<br /><em>next scene.</em><span className="finale-arrow" aria-hidden="true">↗</span></button></h2><div className="finale-bottom"><p>No perfect brief needed.<br />Just something you believe in.</p><a href="mailto:smith@doingthings.xyz">smith@doingthings.xyz ↗</a></div></section>
     </main>
-    <footer className="credits" inert={!entered}><button onClick={() => go(0)}>watch again ↺</button><span>doingthings · everywhere it matters</span><span>© {new Date().getFullYear()}</span></footer>
-    <div className="film-controls" inert={!entered}>
-      <div className="chapter-control" onKeyDown={event => { if (event.key === 'Escape') { setMenu(false); event.currentTarget.querySelector('button')?.focus(); } }}><button className="current-scene" aria-expanded={menu} aria-controls="scene-menu" onClick={() => setMenu(!menu)}><span className="scene-dot" />{story[sceneIndex].name}<span aria-hidden="true">{menu ? '−' : '+'}</span></button>
+    <footer className="credits"><button onClick={() => go(0)}>watch again ↺</button><span>doingthings · everywhere it matters</span><span>© {new Date().getFullYear()}</span></footer>
+    <div className="film-controls">
+      <div className="chapter-control" onKeyDown={event => { if (event.key === 'Escape') { setMenu(false); event.currentTarget.querySelector('button')?.focus(); } }}><button className="current-scene" aria-expanded={menu} aria-controls="scene-menu" onClick={() => { setMenu(!menu); setPlaying(false); }}><span className="scene-dot" />{story[sceneIndex].name}<span aria-hidden="true">{menu ? '−' : '+'}</span></button>
         {menu && <nav className="scene-menu" id="scene-menu" aria-label="Jump to a scene"><span className="whisper">find your scene</span>{story.map((scene, index) => <button key={scene.name} aria-current={sceneIndex === index ? 'step' : undefined} onClick={() => go(index)}>{scene.name}<span aria-hidden="true">↗</span></button>)}</nav>}
       </div>
       <div className="film-track" aria-hidden="true"><span style={{ transform: `scaleX(${progress / STORY_END})` }} /></div>
-      <span className="scroll-prompt">{playing ? 'sit back. feel something.' : hasEnded ? 'the next scene is yours' : 'scroll to unfold'}</span>
-      <div className="playback-controls"><button className="play-button" onClick={playFilm} disabled={!motion} aria-label={playing ? 'Pause film' : 'Play film automatically'} aria-pressed={playing}><span aria-hidden="true">{playing ? 'Ⅱ' : '▷'}</span><span>{playing ? 'pause' : 'play film'}</span></button><button className={`sound-button ${sound ? 'sound-on' : ''}`} onClick={() => void toggleSound()} aria-label={sound ? 'Mute sound' : 'Enable sound'} aria-pressed={sound}><span className="sound-bars" aria-hidden="true"><i /><i /><i /><i /></span><span>sound {sound ? 'on' : 'off'}</span></button><button className="motion-button" aria-label={motion ? 'Reduce motion' : 'Enable motion'} aria-pressed={motion} onClick={() => { setMotion(!motion); setPlaying(false); }}>{motion ? '◉' : '○'}</button></div>
+      <span className="scroll-prompt">{playing ? 'the story is playing · scroll to take over' : hasEnded ? 'the next scene is yours' : 'scroll to unfold'}</span>
+      <div className="playback-controls"><button className="play-button" onClick={playFilm} disabled={!motion} aria-label={playing ? 'Pause film' : 'Play film automatically'} aria-pressed={playing}><span aria-hidden="true">{playing ? 'Ⅱ' : '▷'}</span><span>{playing ? 'pause' : 'play film'}</span></button><button className={`sound-button ${sound ? 'sound-on' : ''}`} onClick={() => void toggleSound()} aria-label={sound ? 'Mute sound' : 'Enable sound'} aria-pressed={sound}><span className="sound-bars" aria-hidden="true"><i /><i /><i /><i /></span><span>{sound ? 'sound on' : 'enable sound'}</span></button><button className="motion-button" aria-label={motion ? 'Reduce motion' : 'Enable motion'} aria-pressed={motion} onClick={() => { setMotion(!motion); setPlaying(false); }}>{motion ? '◉' : '○'}</button></div>
     </div>
     {soundError && <p className="audio-notice" role="status">Sound couldn’t start. You can still explore the film in silence.</p>}
-    <dialog ref={entrance} className="entrance" aria-labelledby="entrance-title" onCancel={event => { event.preventDefault(); enter(false); }}>
-      <div className="entrance-brand">doingthings<span>presents</span></div>
-      <div className="entrance-body"><p className="whisper">a small myth. an infinite possibility.</p><h2 id="entrance-title">Some things<br />are worth<br /><em>feeling.</em></h2><p className="entrance-line">A journey from the gods of making<br />to whatever comes next.</p><div className="entry-actions"><button className="enter-button" onClick={() => enter(true)}>enter with sound <span aria-hidden="true">↗</span></button><button className="enter-silent" onClick={() => enter(false)}>explore in silence</button></div></div>
-      <div className="entrance-footer"><span>{ready ? 'headphones make it a little more magical.' : 'the world is waking up…'}</span><span>scroll to explore · or press play and drift</span></div>
-    </dialog>
     <ProjectBrief open={brief} onClose={() => setBrief(false)} />
   </div>;
 }

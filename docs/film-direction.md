@@ -1,67 +1,61 @@
 # Film direction
 
-The requested revision restores the myth about the gods of making and makes a
-continuous spatial story the primary experience. Editorial chapter numbers,
-figure numbers, service-tab counters, and the isolated particle experiment have
-been removed from the active page.
+## The studio, immediately
 
-## Research and reference
+The website opens directly into an automatically playing story. The first frame
+identifies doingthings as a software product studio and explains the offer in plain
+language. No entrance dialog or sound/silence decision stands in the way.
 
-The [Lusion homepage](https://lusion.co/) was reviewed again in the browser, including
-its moving 3D opening and transition into its manifesto. The relevant principles
-are rendered depth, camera choreography, large spatial forms, and a continuous
-journey. Its assets and implementation were not copied.
+The fictional gods are a narrative device for how ideas become technology. Five
+gifts now represent research, ideation, product design, engineering, and iteration.
+Music, beauty, and fine art are not studio service categories. The story follows a
+possibility, the five gifts, their separation, their reunion, the studio, and the
+visitor's next project. There are no numbered chapters.
 
-The implementation uses the official [Three.js documentation](https://threejs.org/docs/)
-and [MDN Web Audio best practices](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices).
-The sound-on entrance gives the audio engine the user gesture required by browsers.
+## Experience and conversion
 
-## Screenplay and spatial direction
+Twelve beats run for roughly 78 seconds, with longer holds for the opening and the
+invitation. Native scrolling takes over on wheel, touch, and navigation keys. The
+chapter menu pauses playback. Reduced-motion users start with manual navigation and
+static compositions. Opening the brief, moving to services, or hiding the page
+stops automatic playback. A persistent project action and a direct services link
+make it possible to understand the studio and enquire without watching everything.
 
-- The beginning: an imperfect silver relic turns slowly in the dark.
-- The awakening: five forms appear around the original relic.
-- Techne: a faceted core surrounded by thin orbital paths.
-- Melos: nested rings breathe like sound moving through space.
-- Kallos: pearlescent petals gather into a bloom.
-- Poiesis: a silver knot moves beyond simple geometry.
-- Ergon: layered material shifts and assembles into an object.
-- The distance: fragments separate and the score becomes more tense.
-- The gift: the human hands return as a glowing core and fragments gather.
-- The makers: the camera pushes into the relic as doingthings is revealed.
-- The feeling: the original artwork returns behind the original brand promise.
-- Your scene: the visitor is invited into the next story and project brief.
+The services section explains research and strategy, ideation and prototyping,
+product design, and software development. The brief offers these same categories
+plus an end-to-end build. It prepares a local email draft, not a server submission.
+No conversion or retention improvement is claimed without measurement.
 
-This is original procedural 3D with geometry, perspective, physically based materials,
-reflection lighting and post-processing. It is not a rotating photograph or an
-image-to-3D scan. The original generated silver artwork is retained as a story beat,
-loading visual, fallback, and social image; the hands artwork carries the handover.
+## Art and motion
 
-The score is composed locally from synthesis: a harmonic bed, bell/felt-like notes,
-reverb, stereo movement and filtered transition washes. It changes with scenes,
-starts only on request, can be muted at any time, and suspends when the page is hidden.
+The original black, ivory, and silver direction is retained. Actual Three.js
+geometry supplies perspective, reflections, parallax, orbital motion, fragments,
+and a camera movement through the central relic. The five objects are a faceted
+core, layered possibility rings, an exploded interface, connected engineering
+modules, and an assembled stack. Design and engineering replace the earlier flower
+and art knot. Existing generated artwork is retained; no new raster art is needed.
 
-## Controls and limits
+The WebGL scene is lazy loaded; the original artwork appears while it loads and
+serves as an error fallback. Pixel density and frame rate are capped. Rendering
+stops when hidden or outside the viewport, and GPU resources are disposed.
 
-Native scrolling advances the story. Optional playback takes about 108 seconds
-from the start. Manual wheel/touch/navigation-key input pauses it. The visitor can
-skip the film, jump to a named scene, stop motion, mute sound, or start a project.
-The story does not require watching the entire film before contacting the studio.
+## Sound
 
-Award recognition, retention and conversion uplift cannot be established from the
-implementation alone. Real-device performance and audience response should be
-measured after deployment. No live site was published and no project case studies
-were imported.
+The original Web Audio score uses synthesized notes, a harmonic bed, reverb, and
+chapter transitions. The application attempts audio immediately. Browser-blocked
+audio retries on pointer-up or key input, without a modal. The control shows sound
+on only after the AudioContext is running. Explicit mute cancels pending enable
+attempts and stops subsequent automatic retries. Browser autoplay policy cannot be
+overridden by site code.
 
-## Verification in this session
+Research: [MDN autoplay and Web Audio](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay).
+Visual reference: [Lusion](https://lusion.co/) informed spatial presence and the
+relationship between sound, motion, and narrative. The studio's own silver visual
+language and product focus determine the final implementation.
 
-- Production TypeScript/Vite build and ESLint pass.
-- Browser checks covered the entrance, WebGL canvas, scene menu, multiple sculptures,
-  handover imagery, and desktop/mobile layouts including 390×844 and 320×640.
-- Automatic playback advanced the story; a manual scroll stopped playback; replay
-  from beyond the final scene returned to the beginning and resumed.
-- Sound activation resolved successfully and the mute control returned to off.
-  The soundtrack was not independently auditioned through an audio capture.
-- The project brief generated the expected encoded mailto draft, preserved its text
-  when edited, and closed with Escape. No email was sent.
-- The final clean preview reported no captured browser errors. Horizontal overflow
-  was absent at the checked mobile widths. This is not a full device-lab or usability test.
+## Verification
+
+Build and lint checks plus browser review cover direct entry, automatic progression,
+gesture-enabled audio, explicit mute persistence, mobile layout, services navigation,
+updated inquiry options, scene navigation, and motion controls. Audio activation is
+verified through playback state; the score has not been independently auditioned.
